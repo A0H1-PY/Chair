@@ -1,7 +1,8 @@
 {
   "name": "Seat Clash",
   "short_name": "Seat Clash",
-  "start_url": "/",
+  "start_url": "/Chair/",
+  "scope": "/Chair/",
   "display": "standalone",
   "background_color": "#0b0b1f",
   "theme_color": "#0b0b1f",
