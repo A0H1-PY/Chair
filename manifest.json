@@ -1,22 +1,25 @@
 {
   "name": "Seat Clash",
   "short_name": "Seat Clash",
+  "id": "seat-clash",
+  "description": "Seat Clash - The Ultimate Challenge Game",
   "start_url": "/Chair/",
   "scope": "/Chair/",
   "display": "standalone",
   "background_color": "#0b0b1f",
   "theme_color": "#0b0b1f",
   "orientation": "portrait",
-  "description": "Seat Clash - The Ultimate Challenge Game",
+  "lang": "ar",
+  "dir": "ltr",
   "icons": [
     {
-      "src": "/Chair/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/Chair/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
