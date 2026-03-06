@@ -918,30 +918,80 @@ body.theme-purple {
 .sound-btn { background: none; border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px; color: var(--muted); cursor: pointer; font-size: .8rem; transition: all .2s; }
 .sound-btn.active { border-color: var(--fire); color: var(--fire); }
 
+/* ── AVATAR PICKER ── */
+.av-opt { transition: all .15s; user-select: none; }
+.av-opt:active { transform: scale(1.2); }
+
+/* ── VOICE INDICATOR ── */
+@keyframes voicePulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.voice-active { animation: voicePulse .8s infinite; }
+
+/* ── TOAST NOTIFICATION ── */
+#toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--card2); border: 1px solid var(--border); border-radius: 14px;
+  padding: 10px 22px; font-size: .85rem; font-weight: 700; z-index: 9999;
+  opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+#toast.show { opacity: 1; }
+
+/* ── PULSE ANIMATION FOR NEW ROOMS ── */
+@keyframes newRoom { 0%{border-color:var(--fire)} 100%{border-color:var(--border)} }
+.room-card.new-room { animation: newRoom 2s ease; }
+
 </style>
 </head>
 <body>
+<div id="toast"></div>
 
 <!-- ═══════════════ SPLASH ═══════════════ -->
 <!-- ═══════════════ LOGIN ═══════════════ -->
 <div id="pg-login" class="page show">
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px;text-align:center">
     <span style="font-size:5rem;animation:flicker 1.4s infinite alternate">🔥</span>
-    <div class="game-title">الكرسي الساخن</div>
-    <div class="game-ver" style="margin-bottom:32px">الإصدار الخامس — احترافي</div>
-    <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px">
-      <div>
-        <div class="adm-field-label" style="text-align:right;margin-bottom:6px">الاسم الأول</div>
-        <input id="login-fname" class="adm-input" placeholder="مثال: محمد" maxlength="20" onkeydown="if(event.key==='Enter')document.getElementById('login-lname').focus()">
-      </div>
-      <div>
-        <div class="adm-field-label" style="text-align:right;margin-bottom:6px">الاسم الثاني</div>
-        <input id="login-lname" class="adm-input" placeholder="مثال: الأحمد" maxlength="20" onkeydown="if(event.key==='Enter')G.doLogin()">
-      </div>
-      <div id="login-err" style="color:var(--red);font-size:.8rem;display:none">⚠️ أدخل الاسم الأول والثاني</div>
-      <button class="btn-fire" style="margin-top:8px" onclick="G.doLogin()">دخول 🔥</button>
+    <div class="game-title">Seat Clash</div>
+    <div class="game-ver" style="margin-bottom:20px">الإصدار الخامس — احترافي</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;width:100%;max-width:360px;margin-bottom:18px">
+      <button id="tab-login" onclick="G.switchAuthTab('login')" style="flex:1;background:var(--fire);border:none;border-radius:8px;padding:10px;color:#fff;font-family:Cairo,sans-serif;font-weight:900;cursor:pointer;font-size:.9rem;transition:all .2s">دخول</button>
+      <button id="tab-register" onclick="G.switchAuthTab('register')" style="flex:1;background:none;border:none;border-radius:8px;padding:10px;color:var(--muted);font-family:Cairo,sans-serif;font-weight:900;cursor:pointer;font-size:.9rem;transition:all .2s">إنشاء حساب</button>
     </div>
-    <div class="copy-txt" style="margin-top:30px">© 2025 الكرسي الساخن — جميع الحقوق محفوظة</div>
+
+    <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px">
+
+      <!-- Login form -->
+      <div id="form-login">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">اسم المستخدم</div>
+        <input id="login-username" class="adm-input" placeholder="اسم المستخدم" maxlength="20" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">كلمة المرور</div>
+        <input id="login-password" class="adm-input" type="password" placeholder="••••••••" maxlength="30" onkeydown="if(event.key==='Enter')G.doLogin()">
+      </div>
+
+      <!-- Register form -->
+      <div id="form-register" style="display:none">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">اختر أفاتار</div>
+        <div id="av-picker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center">
+          <span class="av-opt" onclick="G.pickAv(this,'🔥')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🔥</span><span class="av-opt" onclick="G.pickAv(this,'⚡')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">⚡</span><span class="av-opt" onclick="G.pickAv(this,'👑')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">👑</span><span class="av-opt" onclick="G.pickAv(this,'🌟')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🌟</span><span class="av-opt" onclick="G.pickAv(this,'🦁')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🦁</span><span class="av-opt" onclick="G.pickAv(this,'🐉')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🐉</span><span class="av-opt" onclick="G.pickAv(this,'🦊')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🦊</span><span class="av-opt" onclick="G.pickAv(this,'🐺')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🐺</span><span class="av-opt" onclick="G.pickAv(this,'🎭')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🎭</span><span class="av-opt" onclick="G.pickAv(this,'🎯')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🎯</span><span class="av-opt" onclick="G.pickAv(this,'💎')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">💎</span><span class="av-opt" onclick="G.pickAv(this,'🚀')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🚀</span><span class="av-opt" onclick="G.pickAv(this,'🌊')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🌊</span><span class="av-opt" onclick="G.pickAv(this,'🏆')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🏆</span><span class="av-opt" onclick="G.pickAv(this,'🎮')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">🎮</span><span class="av-opt" onclick="G.pickAv(this,'😎')" style="font-size:1.6rem;cursor:pointer;background:var(--card);border:2px solid var(--border);border-radius:8px;padding:4px 8px;transition:all .15s">😎</span>
+        </div>
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">اسم المستخدم (فريد)</div>
+        <input id="reg-username" class="adm-input" placeholder="مثال: fire_king99" maxlength="20" style="margin-bottom:10px">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">الاسم الكامل</div>
+        <input id="reg-fullname" class="adm-input" placeholder="مثال: محمد الأحمد" maxlength="30" style="margin-bottom:10px">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">كلمة المرور (6 أحرف+)</div>
+        <input id="reg-password" class="adm-input" type="password" placeholder="••••••••" maxlength="30" style="margin-bottom:10px">
+        <div class="adm-field-label" style="text-align:right;margin-bottom:5px">تأكيد كلمة المرور</div>
+        <input id="reg-password2" class="adm-input" type="password" placeholder="••••••••" maxlength="30" onkeydown="if(event.key==='Enter')G.doRegister()">
+      </div>
+
+      <div id="login-err" style="color:var(--red);font-size:.8rem;display:none;background:rgba(255,23,68,.1);border-radius:8px;padding:8px;margin-top:4px"></div>
+      <div id="login-loading" style="display:none;color:var(--muted);font-size:.82rem;text-align:center;padding:6px">⏳ جارٍ التحقق...</div>
+
+      <button id="btn-do-login"    class="btn-fire" style="margin-top:4px" onclick="G.doLogin()">دخول 🔥</button>
+      <button id="btn-do-register" class="btn-fire" style="margin-top:4px;display:none" onclick="G.doRegister()">إنشاء الحساب ✨</button>
+    </div>
+    <div class="copy-txt" style="margin-top:24px">© 2025 Seat Clash — جميع الحقوق محفوظة</div>
     <button class="admin-entry-btn" onclick="G.openAdminLogin()">⚙️</button>
   </div>
 </div>
@@ -1208,6 +1258,10 @@ body.theme-purple {
     <input id="rh-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('host')">
     <button onclick="G.sendChat('host')" style="background:var(--fire);border:none;border-radius:12px;padding:0 16px;color:#fff;cursor:pointer;font-size:1.1rem">↑</button>
   </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <button id="voice-btn-host" class="btn-ghost" onclick="G.toggleVoice('host')" style="flex:1;border-color:var(--blue);color:var(--blue)">🎤 صوت</button>
+    <div id="voice-status-host" style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;padding:0 6px">🔇 صامت</div>
+  </div>
   <div style="display:flex;gap:10px">
     <button class="btn-fire" onclick="G.hostStartGame()" style="flex:2">🚀 ابدأ اللعبة</button>
     <button class="btn-ghost" onclick="G.closeRoom()" style="flex:1">إغلاق</button>
@@ -1237,6 +1291,10 @@ body.theme-purple {
   <div style="display:flex;gap:8px;margin:8px 0 14px">
     <input id="rg-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('guest')">
     <button onclick="G.sendChat('guest')" style="background:var(--fire);border:none;border-radius:12px;padding:0 16px;color:#fff;cursor:pointer;font-size:1.1rem">↑</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button id="voice-btn-guest" class="btn-ghost" onclick="G.toggleVoice('guest')" style="flex:1;border-color:var(--blue);color:var(--blue)">🎤 صوت</button>
+    <div id="voice-status-guest" style="font-size:.7rem;color:var(--muted);display:flex;align-items:center;padding:0 6px">🔇 صامت</div>
   </div>
   <button class="btn-ghost" onclick="G.leaveRoom()">↩ مغادرة</button>
 </div>
@@ -2104,8 +2162,8 @@ const AUTH = {
     if (saved) { AUTH.user = JSON.parse(saved); return true; }
     return false;
   },
-  save(fname, lname) {
-    AUTH.user = { fname, lname, full: fname + ' ' + lname, av: '🔥' };
+  save(username, fullname, av, uid) {
+    AUTH.user = { fname: username, lname: '', full: fullname, av: av || '🔥', username: uid || username };
     localStorage.setItem('hc_user', JSON.stringify(AUTH.user));
     if (typeof STATS !== 'undefined') STATS.load();
     if (typeof THEME !== 'undefined') THEME.load();
@@ -2892,14 +2950,87 @@ const G = {
 
 
   // ── AUTH ──
-  doLogin() {
-    const fname = document.getElementById('login-fname').value.trim();
-    const lname = document.getElementById('login-lname').value.trim();
+  switchAuthTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('form-login').style.display    = isLogin ? 'block' : 'none';
+    document.getElementById('form-register').style.display = isLogin ? 'none'  : 'block';
+    document.getElementById('btn-do-login').style.display    = isLogin ? 'block' : 'none';
+    document.getElementById('btn-do-register').style.display = isLogin ? 'none'  : 'block';
+    document.getElementById('tab-login').style.background    = isLogin ? 'var(--fire)' : 'none';
+    document.getElementById('tab-login').style.color         = isLogin ? '#fff' : 'var(--muted)';
+    document.getElementById('tab-register').style.background = isLogin ? 'none' : 'var(--fire)';
+    document.getElementById('tab-register').style.color      = isLogin ? 'var(--muted)' : '#fff';
+    document.getElementById('login-err').style.display = 'none';
+  },
+
+  _authErr(msg) {
+    const el = document.getElementById('login-err');
+    el.textContent = msg; el.style.display = 'block';
+    document.getElementById('login-loading').style.display = 'none';
+  },
+  _authLoading(show) {
+    document.getElementById('login-loading').style.display = show ? 'block' : 'none';
+    document.getElementById('btn-do-login').disabled    = show;
+    document.getElementById('btn-do-register').disabled = show;
+  },
+
+  async doLogin() {
+    const username = document.getElementById('login-username')?.value.trim().toLowerCase();
+    const password = document.getElementById('login-password')?.value;
     const err = document.getElementById('login-err');
-    if (!fname || !lname) { err.style.display='block'; return; }
     err.style.display = 'none';
-    AUTH.save(fname, lname);
-    G.goSplash();
+    if (!username || !password) { G._authErr('⚠️ أدخل اسم المستخدم وكلمة المرور'); return; }
+    G._authLoading(true);
+    try {
+      if (!window.DB) throw new Error('لا يوجد اتصال بالخادم');
+      const doc = await window.DB.collection('users').doc(username).get();
+      if (!doc.exists) { G._authErr('❌ اسم المستخدم غير موجود'); return; }
+      const data = doc.data();
+      // Simple hash check (md5-like using btoa)
+      const hashed = btoa(username + ':' + password);
+      if (data.pw !== hashed) { G._authErr('❌ كلمة المرور خاطئة'); return; }
+      AUTH.save(data.username, data.fullname, data.av || '🔥', username);
+      // Load this user's stats
+      if (data.stats) { STATS.data = { ...STATS.data, ...data.stats }; STATS.save(); }
+      G.goSplash();
+    } catch(e) {
+      G._authErr('⚠️ خطأ في الاتصال — حاول مرة أخرى');
+      console.error(e);
+    } finally { G._authLoading(false); }
+  },
+
+  async doRegister() {
+    const username  = document.getElementById('reg-username')?.value.trim().toLowerCase();
+    const fullname  = document.getElementById('reg-fullname')?.value.trim();
+    const password  = document.getElementById('reg-password')?.value;
+    const password2 = document.getElementById('reg-password2')?.value;
+    document.getElementById('login-err').style.display = 'none';
+
+    if (!username || username.length < 3)  { G._authErr('⚠️ اسم المستخدم يجب أن يكون 3 أحرف على الأقل'); return; }
+    if (!/^[a-z0-9_]+$/.test(username))    { G._authErr('⚠️ اسم المستخدم: أحرف إنجليزية وأرقام و _ فقط'); return; }
+    if (!fullname || fullname.length < 2)   { G._authErr('⚠️ أدخل الاسم الكامل'); return; }
+    if (!password || password.length < 6)   { G._authErr('⚠️ كلمة المرور 6 أحرف على الأقل'); return; }
+    if (password !== password2)             { G._authErr('⚠️ كلمتا المرور غير متطابقتين'); return; }
+
+    G._authLoading(true);
+    try {
+      if (!window.DB) throw new Error('no db');
+      // Check username not taken
+      const existing = await window.DB.collection('users').doc(username).get();
+      if (existing.exists) { G._authErr('❌ اسم المستخدم محجوز — اختر اسماً آخر'); return; }
+      // Save user
+      const hashed = btoa(username + ':' + password);
+      await window.DB.collection('users').doc(username).set({
+        username, fullname, av: '🔥', pw: hashed,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        stats: { wins:0, games:0, correct:0, bestStreak:0, totalPts:0, xp:0 }
+      });
+      AUTH.save(username, fullname, '🔥', username);
+      G.goSplash();
+    } catch(e) {
+      G._authErr('⚠️ خطأ في إنشاء الحساب — حاول مرة أخرى');
+      console.error(e);
+    } finally { G._authLoading(false); }
   },
   goSplash() {
     if (!AUTH.user) { G.go('pg-login'); return; }
@@ -3031,15 +3162,17 @@ const G = {
     if (!list) return;
     list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">🔄 جارٍ البحث...</div>';
     try {
+      // Simple query without orderBy to avoid composite index requirement
       const snap = await window.DB.collection('rooms')
         .where('open', '==', true)
-        .orderBy('createdAt', 'desc')
         .limit(50)
         .get();
       G._allRooms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Remove stale rooms (older than 2h)
+      // Remove stale rooms (older than 2h) and sort by newest
       const now = Date.now();
-      G._allRooms = G._allRooms.filter(r => now - (r.createdAt?.toMillis?.() || 0) < 7200000);
+      G._allRooms = G._allRooms
+        .filter(r => now - (r.createdAt?.toMillis?.() || 0) < 7200000)
+        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cnt.textContent = `${G._allRooms.length} غرفة متاحة 🌍`;
       G.renderRooms(G._allRooms);
     } catch(e) {
@@ -3301,13 +3434,19 @@ const G = {
   // ── REPORT ──
   showReport() {
     // في وضع P2P: دمج النقاط من PEER_STATE.scores
-    if (PEER_STATE.isHost && Object.keys(PEER_STATE.scores).length > 0) {
-      Object.values(PEER_STATE.scores).forEach(sc => {
+    if (PEER_STATE.isHost) {
+      // Merge all scores first
+      Object.values(PEER_STATE.scores || {}).forEach(sc => {
         const p = G.cfg.players.find(x => x.name === sc.player);
         if (p) { p.pts = sc.pts; p.ok = sc.ok; p.bad = sc.bad; p.skip = sc.skip; }
       });
-      // أمر الجميع بعرض التقرير
-      broadcast({ type:'show_report' });
+      // Send final players data WITH the report command so all guests have same data
+      broadcast({
+        type: 'show_report',
+        players: G.cfg.players.map(p => ({
+          name: p.name, av: p.av, pts: p.pts, ok: p.ok, bad: p.bad, skip: p.skip
+        }))
+      });
     }
     G._renderReport();
   },
@@ -3469,18 +3608,21 @@ function handleMsg(msg, fromConn) {
       break;
 
     case 'chat':
+      // Guest sent to host — host adds to local chat and broadcasts
       PEER_STATE.chat.push({ from: msg.from, text: msg.text });
       G.renderChat(PEER_STATE.isHost ? 'host' : 'guest');
-      if (!PEER_STATE.isHost) {
-        // أعد الإرسال للجميع (relay من الضيف للمضيف للكل)
-      } else {
-        broadcast(msg); // المضيف يبث للجميع
+      if (PEER_STATE.isHost) {
+        // Broadcast as chat_broadcast so guests get it (not host again)
+        broadcast({ type:'chat_broadcast', from: msg.from, text: msg.text });
       }
       break;
 
     case 'chat_broadcast':
-      PEER_STATE.chat.push({ from: msg.from, text: msg.text });
-      G.renderChat('guest');
+      // Only add if not already in chat (prevents duplicate for host)
+      if (!PEER_STATE.isHost) {
+        PEER_STATE.chat.push({ from: msg.from, text: msg.text });
+        G.renderChat('guest');
+      }
       break;
 
     case 'game_start':
@@ -3501,7 +3643,10 @@ function handleMsg(msg, fromConn) {
       break;
 
     case 'show_report':
-      // المضيف يأمر الكل بعرض التقرير
+      // Host sends final scores — update local players then render
+      if (msg.players && msg.players.length > 0) {
+        G.cfg.players = msg.players;
+      }
       G._renderReport();
       break;
   }
@@ -4400,12 +4545,13 @@ Object.assign(G, {
     document.getElementById('file-input').value = '';
     document.getElementById('upload-filename').textContent = 'لم يُختر ملف بعد';
     document.getElementById('parse-result').innerHTML =
-      `<div class="parse-ok-box">🎉 تم الاستيراد! جارٍ الحفظ...</div>`;
-    SRV.saveBatch(cat, batch).then(r => {
-      const msg = r.ok
-        ? `🎉 تم حفظ ${r.added} سؤال في extra-questions.js (إجمالي محفوظ: ${r.total})`
-        : `✅ استُورد في الذاكرة (الخادم غير متصل)`;
-      document.getElementById('parse-result').innerHTML = `<div class="parse-ok-box">${msg}</div>`;
+      `<div class="parse-ok-box">🎉 تم الاستيراد! جارٍ الحفظ في Firebase...</div>`;
+    G._saveQsToFirestore(cat, batch).then(count => {
+      document.getElementById('parse-result').innerHTML =
+        `<div class="parse-ok-box">🎉 تم حفظ ${count} سؤال في Firebase بنجاح!</div>`;
+    }).catch(() => {
+      document.getElementById('parse-result').innerHTML =
+        `<div class="parse-ok-box">✅ استُورد في الذاكرة (تعذر الحفظ في Firebase)</div>`;
     });
   },
 
@@ -4462,15 +4608,15 @@ Object.assign(G, {
       document.getElementById('man-open-answer').value='';
     }
     document.getElementById('man-q').value='';
-    okEl.textContent = '✅ جارٍ الحفظ...';
+    okEl.textContent = '✅ جارٍ الحفظ في Firebase...';
     okEl.style.display = 'block';
     G.renderBrowse();
-    // حفظ في الخادم
-    SRV.saveQuestion(cat, diff, savedQ).then(r => {
-      okEl.textContent = r.ok
-        ? `✅ تمت الإضافة وحُفظ في extra-questions.js (إجمالي: ${r.total})`
-        : '✅ أُضيف في الذاكرة (الخادم غير متصل)';
-      setTimeout(() => okEl.style.display='none', 3500);
+    G._saveQsToFirestore(cat, [{ diff, ...savedQ }]).then(() => {
+      okEl.textContent = '✅ تمت الإضافة وحُفظت في Firebase!';
+      setTimeout(() => okEl.style.display='none', 3000);
+    }).catch(() => {
+      okEl.textContent = '✅ أُضيف في الذاكرة (تعذر الحفظ)';
+      setTimeout(() => okEl.style.display='none', 3000);
     });
   },
 
@@ -4987,6 +5133,14 @@ Object.assign(G, {
     G.go('pg-browse-rooms');
   },
 
+  toast(msg, duration = 2500) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration);
+  },
+
 });
 
 // ════════════════════════════════════════════════════════
@@ -5020,10 +5174,276 @@ document.addEventListener('DOMContentLoaded', () => {
   THEME.load();
   SFX.init();
   if (SFX.bgmEnabled) SFX.startBgm();
+  // Load extra questions from Firestore
+  setTimeout(() => G.loadQsFromFirestore(), 1500);
 });
 
 // Hook correct/wrong answer sounds
 const _origNextQ = G.nextQuestion?.bind(G);
+
+// ════════════════════════════════════════════════════════
+//  FIRESTORE QUESTIONS SYNC
+// ════════════════════════════════════════════════════════
+Object.assign(G, {
+
+  async _saveQsToFirestore(cat, batch) {
+    if (!window.DB) throw new Error('no db');
+    const col = window.DB.collection('questions');
+    const chunks = [];
+    for (let i = 0; i < batch.length; i += 400) chunks.push(batch.slice(i, i+400));
+    let total = 0;
+    for (const chunk of chunks) {
+      const wr = window.DB.batch();
+      chunk.forEach(q => { wr.set(col.doc(), { cat, ...q, addedAt: firebase.firestore.FieldValue.serverTimestamp() }); });
+      await wr.commit();
+      total += chunk.length;
+    }
+    return total;
+  },
+
+  async loadQsFromFirestore() {
+    if (!window.DB) return;
+    try {
+      const snap = await window.DB.collection('questions').limit(2000).get();
+      if (snap.empty) return;
+      snap.docs.forEach(d => {
+        const q = d.data();
+        const cat = q.cat || 'general';
+        const diff = q.diff || 'med';
+        if (!QDB[cat]) QDB[cat] = { easy:[], med:[], hard:[] };
+        if (!QDB[cat][diff]) QDB[cat][diff] = [];
+        // Avoid duplicates
+        const exists = QDB[cat][diff].some(x => x.q === q.q);
+        if (!exists) QDB[cat][diff].push({ q: q.q, a: q.a, type: q.type || 'mcq', opts: q.opts });
+      });
+      console.log(`🔥 Loaded ${snap.size} questions from Firestore`);
+    } catch(e) { console.warn('Firestore questions load failed', e); }
+  },
+
+});
+
+// ════════════════════════════════════════════════════════
+//  VOICE CHAT SYSTEM (WebRTC via PeerJS)
+// ════════════════════════════════════════════════════════
+const VOICE = {
+  stream: null,       // local mic stream
+  calls: {},          // peerId -> MediaConnection
+  muted: true,
+  enabled: false,
+
+  async start() {
+    try {
+      VOICE.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      VOICE.enabled = true;
+      VOICE.muted   = false;
+      console.log('🎤 Mic ready');
+      return true;
+    } catch(e) {
+      console.warn('Mic access denied:', e);
+      return false;
+    }
+  },
+
+  stop() {
+    if (VOICE.stream) {
+      VOICE.stream.getTracks().forEach(t => t.stop());
+      VOICE.stream = null;
+    }
+    Object.values(VOICE.calls).forEach(c => { try { c.close(); } catch(e){} });
+    VOICE.calls = {};
+    VOICE.enabled = false;
+    VOICE.muted   = true;
+  },
+
+  toggleMute() {
+    if (!VOICE.stream) return;
+    VOICE.muted = !VOICE.muted;
+    VOICE.stream.getAudioTracks().forEach(t => { t.enabled = !VOICE.muted; });
+  },
+
+  // Host calls all connected peers
+  callAll() {
+    if (!VOICE.stream || !PEER_STATE.peer) return;
+    PEER_STATE.conns.forEach(conn => {
+      if (conn.peer && !VOICE.calls[conn.peer]) {
+        const call = PEER_STATE.peer.call(conn.peer, VOICE.stream);
+        VOICE._handleCall(call, conn.peer);
+      }
+    });
+  },
+
+  // Guest answers incoming call
+  answer(call) {
+    if (!VOICE.stream) {
+      VOICE.start().then(ok => { if(ok) { call.answer(VOICE.stream); VOICE._handleCall(call, call.peer); } });
+    } else {
+      call.answer(VOICE.stream);
+      VOICE._handleCall(call, call.peer);
+    }
+  },
+
+  _handleCall(call, peerId) {
+    VOICE.calls[peerId] = call;
+    call.on('stream', remoteStream => {
+      // Play remote audio
+      let audio = document.getElementById('voice-audio-' + peerId);
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.id = 'voice-audio-' + peerId;
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+      }
+      audio.srcObject = remoteStream;
+      VOICE._updateStatus(true);
+    });
+    call.on('close', () => {
+      delete VOICE.calls[peerId];
+      const audio = document.getElementById('voice-audio-' + peerId);
+      if (audio) audio.remove();
+      if (Object.keys(VOICE.calls).length === 0) VOICE._updateStatus(false);
+    });
+  },
+
+  _updateStatus(connected) {
+    ['host','guest'].forEach(role => {
+      const el = document.getElementById('voice-status-' + role);
+      if (el) el.textContent = connected ? '🎙️ متصل' : (VOICE.muted ? '🔇 صامت' : '🎤 يبث');
+    });
+  }
+};
+
+// Hook voice into PeerJS peer init
+const _origInitPeer = window.initPeer;
+
+// ════════════════════════════════════════════════════════
+//  UI IMPROVEMENTS + AVATAR PICKER
+// ════════════════════════════════════════════════════════
+Object.assign(G, {
+
+  _selectedAv: '🔥',
+
+  pickAv(el, emoji) {
+    document.querySelectorAll('.av-opt').forEach(e => {
+      e.style.borderColor = 'var(--border)';
+      e.style.background  = 'var(--card)';
+    });
+    el.style.borderColor = 'var(--fire)';
+    el.style.background  = 'rgba(255,69,0,.15)';
+    G._selectedAv = emoji;
+  },
+
+  // Voice toggle
+  async toggleVoice(role) {
+    const btn = document.getElementById('voice-btn-' + role);
+    const statusEl = document.getElementById('voice-status-' + role);
+
+    if (!VOICE.enabled) {
+      if (btn) { btn.textContent = '⏳ جارٍ...'; btn.disabled = true; }
+      const ok = await VOICE.start();
+      if (btn) { btn.disabled = false; }
+      if (!ok) {
+        if (statusEl) statusEl.textContent = '❌ لا يوجد إذن';
+        if (btn) btn.textContent = '🎤 صوت';
+        // Show explanation
+        alert('⚠️ يجب السماح بالوصول للميكروفون من إعدادات المتصفح');
+        return;
+      }
+      if (btn) { btn.textContent = '🔇 إيقاف'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
+      if (statusEl) statusEl.textContent = '🎤 يبث';
+      // If host, call all peers
+      if (PEER_STATE.isHost) {
+        VOICE.callAll();
+        // Listen for future connections
+        PEER_STATE.peer?.on('call', call => VOICE.answer(call));
+      } else if (PEER_STATE.peer) {
+        // Guest: listen for host call
+        PEER_STATE.peer.on('call', call => VOICE.answer(call));
+        // Notify host to call us (send voice_ready message)
+        if (PEER_STATE.conn?.open) PEER_STATE.conn.send({ type: 'voice_ready' });
+      }
+    } else {
+      // Toggle mute
+      VOICE.toggleMute();
+      if (btn) {
+        btn.textContent = VOICE.muted ? '🎤 صوت' : '🔇 إيقاف';
+        btn.style.borderColor = VOICE.muted ? 'var(--blue)' : 'var(--green)';
+        btn.style.color = VOICE.muted ? 'var(--blue)' : 'var(--green)';
+      }
+      if (statusEl) statusEl.textContent = VOICE.muted ? '🔇 صامت' : '🎤 يبث';
+    }
+  },
+
+});
+
+// Handle voice_ready from guest (host calls them)
+const _origHandleMsg = handleMsg;
+function handleMsg(msg, fromConn) {
+  if (msg.type === 'voice_ready' && PEER_STATE.isHost && VOICE.enabled && VOICE.stream) {
+    // Call this specific guest
+    const call = PEER_STATE.peer?.call(fromConn.peer, VOICE.stream);
+    if (call) VOICE._handleCall(call, fromConn.peer);
+    return;
+  }
+  _origHandleMsg(msg, fromConn);
+}
+
+// Patch doRegister to use selected avatar
+const _origDoRegister = G.doRegister.bind(G);
+G.doRegister = async function() {
+  // Temporarily patch the av used
+  const origSave = AUTH.save.bind(AUTH);
+  AUTH.save = function(u, f, av, uid) {
+    return origSave(u, f, G._selectedAv || av || '🔥', uid);
+  };
+  // Patch the DB write to use selected av
+  const origDB = window.DB;
+  if (window.DB) {
+    const origCollection = window.DB.collection.bind(window.DB);
+    window.DB._pendingAv = G._selectedAv || '🔥';
+  }
+  await _origDoRegister();
+  AUTH.save = origSave;
+};
+
+// Override doRegister to include av properly
+G.doRegister = async function() {
+  const username  = document.getElementById('reg-username')?.value.trim().toLowerCase();
+  const fullname  = document.getElementById('reg-fullname')?.value.trim();
+  const password  = document.getElementById('reg-password')?.value;
+  const password2 = document.getElementById('reg-password2')?.value;
+  const av        = G._selectedAv || '🔥';
+  document.getElementById('login-err').style.display = 'none';
+
+  if (!username || username.length < 3)  { G._authErr('⚠️ اسم المستخدم يجب أن يكون 3 أحرف على الأقل'); return; }
+  if (!/^[a-z0-9_]+$/.test(username))    { G._authErr('⚠️ اسم المستخدم: أحرف إنجليزية وأرقام و _ فقط'); return; }
+  if (!fullname || fullname.length < 2)   { G._authErr('⚠️ أدخل الاسم الكامل'); return; }
+  if (!password || password.length < 6)   { G._authErr('⚠️ كلمة المرور 6 أحرف على الأقل'); return; }
+  if (password !== password2)             { G._authErr('⚠️ كلمتا المرور غير متطابقتين'); return; }
+
+  G._authLoading(true);
+  try {
+    if (!window.DB) throw new Error('no db');
+    const existing = await window.DB.collection('users').doc(username).get();
+    if (existing.exists) { G._authErr('❌ اسم المستخدم محجوز — اختر اسماً آخر'); return; }
+    const hashed = btoa(username + ':' + password);
+    await window.DB.collection('users').doc(username).set({
+      username, fullname, av, pw: hashed,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      stats: { wins:0, games:0, correct:0, bestStreak:0, totalPts:0, xp:0 }
+    });
+    AUTH.save(username, fullname, av, username);
+    G.goSplash();
+  } catch(e) {
+    G._authErr('⚠️ خطأ في إنشاء الحساب — حاول مرة أخرى');
+    console.error(e);
+  } finally { G._authLoading(false); }
+};
+
+// Clean up voice on room close/leave
+const _origCloseRoom = G.closeRoom.bind(G);
+G.closeRoom = function() { VOICE.stop(); _origCloseRoom(); };
+const _origLeaveRoom = G.leaveRoom.bind(G);
+G.leaveRoom = function() { VOICE.stop(); _origLeaveRoom(); };
 
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
