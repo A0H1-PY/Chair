@@ -1,9 +1,9 @@
 const CACHE_NAME = "seatclash-v1";
 
 const urls = [
-  "/",
-  "/index.html",
-  "/manifest.json"
+  "/Chair/",
+  "/Chair/index.html",
+  "/Chair/manifest.json"
 ];
 
 self.addEventListener("install", event => {
