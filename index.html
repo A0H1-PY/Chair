@@ -1265,7 +1265,10 @@ body.theme-purple {
     </div>
     <div style="background:rgba(255,69,0,.12);border:1px solid var(--fire);border-radius:20px;padding:4px 12px;font-size:.7rem;color:var(--fire);font-weight:900">👑 ADMIN</div>
   </div>
-  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:8px">👥 اللاعبون (<span id="rh-count">1</span>)</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-size:.75rem;font-weight:900;color:var(--muted)">👥 اللاعبون (<span id="rh-count">1</span>)</div>
+    <div style="font-size:.68rem;color:var(--green);font-weight:700">✅ الدخول تلقائي</div>
+  </div>
   <div id="rh-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
   <!-- طلبات الانضمام ألغيت — الدخول تلقائي -->
   <div id="rh-requests-section" style="display:none"><div id="rh-requests"></div></div>
@@ -1299,10 +1302,13 @@ body.theme-purple {
   </div>
   <div id="rg-status-box" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px">
     <div style="font-size:1.5rem;margin-bottom:6px" id="rg-status-icon">⏳</div>
-    <div id="rg-status-text" style="font-size:.88rem;color:var(--muted)">في انتظار الموافقة...</div>
+    <div id="rg-status-text" style="font-size:.88rem;color:var(--muted)">جارٍ الاتصال...</div>
   </div>
-  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:8px">👥 اللاعبون</div>
-  <div id="rg-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-size:.75rem;font-weight:900;color:var(--muted)">👥 اللاعبون</div>
+    <div id="rg-players-count" style="font-size:.72rem;color:var(--muted)">👥 1 لاعب</div>
+  </div>
+  <div id="rg-players" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
   <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:6px">💬 الدردشة</div>
   <div style="font-size:.7rem;color:var(--muted);font-weight:900;margin-bottom:4px">😄 تفاعل سريع</div>
   <div class="emoji-bar">
@@ -3183,15 +3189,15 @@ const G = {
       }
       // استقبال اتصالات الضيوف
       PEER_STATE.peer.on('connection', conn => {
+        // ✅ اتصال جديد — نضيفه للقائمة ونستقبل رسائله
         conn.on('open', () => {
-          PEER_STATE.conns.push(conn);
-          document.getElementById('rh-count').textContent = PEER_STATE.players.length;
-          // Update player count in Firebase
-          if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
+          // لا نضيف اللاعب هنا — نضيفه عند وصول join_req
+          if (!PEER_STATE.conns.includes(conn)) {
+            PEER_STATE.conns.push(conn);
+          }
         });
         conn.on('data', msg => {
           if (msg.type === 'spectate_req') {
-            // Accept spectator silently
             conn.send({ type: 'spectate_ok' });
             PEER_STATE._spectators = PEER_STATE._spectators || [];
             PEER_STATE._spectators.push(conn);
@@ -3200,11 +3206,16 @@ const G = {
           handleMsg(msg, conn);
         });
         conn.on('close', () => {
+          // إزالة الاتصال والاعب عند الانفصال
           PEER_STATE.conns = PEER_STATE.conns.filter(c => c !== conn);
+          const before = PEER_STATE.players.length;
           PEER_STATE.players = PEER_STATE.players.filter(p => p.conn !== conn);
-          G.renderHostPlayers();
-          document.getElementById('rh-count').textContent = PEER_STATE.players.length;
-          if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
+          if (PEER_STATE.players.length !== before) {
+            G.renderHostPlayers();
+            document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+            if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
+            broadcast({ type:'player_list', players: PEER_STATE.players.map(p=>({name:p.name,av:p.av,isHost:p.isHost,accepted:p.accepted})) });
+          }
         });
       });
     } catch(e) {
@@ -3305,18 +3316,34 @@ const G = {
       await initPeer(); // ضيف بـ ID عشوائي
       const conn = PEER_STATE.peer.connect(roomId, { reliable: true });
       PEER_STATE.conn = conn;
+      // ✅ timeout إذا لم يُفتح الاتصال خلال 10 ثوانٍ
+      const _joinTimeout = setTimeout(() => {
+        if (!conn.open) {
+          document.getElementById('rg-status-icon').textContent = '❌';
+          document.getElementById('rg-status-text').textContent = '⏰ انتهت المهلة — كود خاطئ أو الغرفة مغلقة';
+          try { conn.close(); } catch(e) {}
+        }
+      }, 10000);
+
       conn.on('open', () => {
-        document.getElementById('rg-room-name').textContent = '🔗 ' + roomId;
-        document.getElementById('rg-status-icon').textContent = '✅';
-        document.getElementById('rg-status-text').textContent = 'متصل! في انتظار موافقة المضيف...';
-        // أرسل طلب الانضمام
+        clearTimeout(_joinTimeout);
+        document.getElementById('rg-room-name').textContent = '🏠 ' + (roomName || roomId);
+        document.getElementById('rg-status-icon').textContent = '⏳';
+        document.getElementById('rg-status-text').textContent = 'جارٍ الانضمام...';
         conn.send({ type:'join_req', name: AUTH.user?.full || 'لاعب', av: AUTH.user?.av || '👤' });
       });
       conn.on('data', msg => handleMsg(msg, conn));
       conn.on('close', () => {
-        document.getElementById('rg-status-text').textContent = '⚠️ انقطع الاتصال بالمضيف';
+        clearTimeout(_joinTimeout);
+        // لا تُحوّل الشاشة إذا كان الضيف قد طُرد (handleMsg يتولى ذلك)
+        const statusText = document.getElementById('rg-status-text');
+        if (statusText && !statusText.textContent.includes('طُرد') && !statusText.textContent.includes('طردك')) {
+          statusText.textContent = '⚠️ انقطع الاتصال بالمضيف';
+          document.getElementById('rg-status-icon').textContent = '⚠️';
+        }
       });
-      conn.on('error', () => {
+      conn.on('error', err => {
+        clearTimeout(_joinTimeout);
         document.getElementById('rg-status-icon').textContent = '❌';
         document.getElementById('rg-status-text').textContent = 'فشل الاتصال — تحقق من الكود';
         const e = document.getElementById('join-err');
@@ -3328,12 +3355,14 @@ const G = {
     }
   },
   leaveRoom() {
-    if(PEER_STATE.conn) PEER_STATE.conn.close();
-    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
-    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = [];
+    if(window._roomHeartbeat) { clearInterval(window._roomHeartbeat); window._roomHeartbeat=null; }
+    if(PEER_STATE.conn) { try{PEER_STATE.conn.close();}catch(e){} }
+    if(PEER_STATE.peer) { try{PEER_STATE.peer.destroy();}catch(e){} }
+    PEER_STATE.peer=null; PEER_STATE.conn=null; PEER_STATE.conns=[]; PEER_STATE.players=[];
     G.go('pg-lobby');
   },
   closeRoom() {
+    VOICE.stop();
     if(window._roomHeartbeat) { clearInterval(window._roomHeartbeat); window._roomHeartbeat=null; }
     if(window._roomDocRef) {
       window._roomDocRef.update({ open:false }).catch(()=>{});
@@ -3358,34 +3387,8 @@ const G = {
         ${!p.isHost ? `<button onclick="G.kickPlayer('${p.name}')" style="background:rgba(255,23,68,.12);border:1px solid var(--red);border-radius:8px;padding:5px 10px;color:var(--red);cursor:pointer;font-size:.78rem;font-family:Cairo,sans-serif;font-weight:900" title="طرد اللاعب">⛔ طرد</button>` : ''}
       </div>`).join('');
   },
-  renderRequests() {
-    const sec = document.getElementById('rh-requests-section');
-    const box = document.getElementById('rh-requests');
-    const pending = PEER_STATE.players.filter(p => !p.isHost && !p.accepted);
-    if(!pending.length){ sec.style.display='none'; return; }
-    sec.style.display='block';
-    box.innerHTML = pending.map(p =>
-      `<div class="join-request">
-        <span style="font-size:1.2rem">${p.av||'👤'}</span>
-        <span class="join-req-name">${p.name}</span>
-        <button class="join-req-acc" onclick="G.acceptPlayer('${p.name}')">✅ قبول</button>
-        <button class="join-req-rej" onclick="G.rejectPlayer('${p.name}')">❌</button>
-      </div>`).join('');
-  },
-  acceptPlayer(player) {
-    const p = PEER_STATE.players.find(x => x.name === player);
-    if (p) {
-      p.accepted = true;
-      p.conn.send({ type:'join_accept' });
-      broadcast({ type:'player_list', players: PEER_STATE.players.map(x=>({name:x.name,av:x.av,isHost:x.isHost,accepted:x.accepted})) });
-      G.renderHostPlayers();
-      G.renderRequests();
-      document.getElementById('rh-count').textContent = PEER_STATE.players.length;
-    }
-  },
-  rejectPlayer(player) {
-    G.kickPlayer(player);
-  },
+  // renderRequests و acceptPlayer تمت إزالتهما — الدخول تلقائي الآن
+  rejectPlayer(player) { G.kickPlayer(player); },
   kickPlayer(playerName) {
     const p = PEER_STATE.players.find(x => x.name === playerName);
     if (!p || p.isHost) return;
@@ -3402,15 +3405,16 @@ const G = {
     G.showToast(`⛔ تم طرد ${playerName}`);
   },
   renderGuestView(r) {
-    const me = (r.players||[]).find(p => p.name === AUTH.user?.full);
-    if(me?.accepted){ document.getElementById('rg-status-icon').textContent='✅'; document.getElementById('rg-status-text').textContent='تمت الموافقة! في انتظار المضيف...'; }
     const el = document.getElementById('rg-players');
     if(el) el.innerHTML = (r.players||[]).map(p =>
-      `<div class="room-player ${p.isHost?'host-player':''}">
-        <span class="room-player-av">${p.av||'👤'}</span>
-        <span class="room-player-name">${p.name}</span>
-        <span class="room-player-badge ${p.isHost?'badge-host':'badge-ready'}">${p.isHost?'👑 مضيف':'✅'}</span>
+      `<div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid ${p.isHost?'var(--fire)':'var(--border)'};border-radius:14px;padding:10px 14px;margin-bottom:6px">
+        <span style="font-size:1.4rem">${p.av||'👤'}</span>
+        <span style="font-weight:900;flex:1">${p.name}</span>
+        <span style="font-size:.68rem;font-weight:900;background:${p.isHost?'rgba(255,69,0,.15)':'rgba(0,230,118,.1)'};color:${p.isHost?'var(--fire)':'var(--green)'};border-radius:20px;padding:3px 10px">${p.isHost?'👑 مضيف':'✅ داخل'}</span>
       </div>`).join('');
+    // تحديث عداد اللاعبين
+    const countEl = document.getElementById('rg-players-count');
+    if(countEl) countEl.textContent = `👥 ${(r.players||[]).length} لاعب`;
   },
   renderChat(role) {
     const box = document.getElementById(role==='host'?'rh-chat':'rg-chat');
@@ -3503,11 +3507,13 @@ const G = {
     } catch(e) {}
   },
   hostStartGame() {
-    const accepted = PEER_STATE.players.filter(p=>p.accepted||p.isHost);
-    if(accepted.length < 2){ alert('تحتاج لاعبَين على الأقل مقبولَين!'); return; }
-    const settings = { mode:ROOM.mode, diff:ROOM.diff, time:ROOM.time };
-    const players  = accepted.map(p=>({name:p.name,av:p.av,isHost:p.isHost,pts:0,ok:0,bad:0,skip:0}));
-    // أرسل إشارة البدء لجميع الضيوف
+    // كل اللاعبين مقبولون تلقائياً — لا حاجة لفلتر
+    if(PEER_STATE.players.length < 2){
+      G.showToast('⚠️ تحتاج لاعبَين على الأقل!');
+      return;
+    }
+    const settings = { mode:ROOM.mode||'all', diff:ROOM.diff||'mixed', time:ROOM.time||30 };
+    const players  = PEER_STATE.players.map(p=>({name:p.name,av:p.av||'👤',isHost:p.isHost,pts:0,ok:0,bad:0,skip:0}));
     broadcast({ type:'game_start', settings, players });
     G.startNetworkGame(settings, players);
   },
@@ -3640,23 +3646,47 @@ function genRoomCode() {
 // ── تهيئة Peer ──
 function initPeer(customId) {
   return new Promise((resolve, reject) => {
+    // ✅ إصلاح: تدمير أي peer قديم أولاً لتجنب "ID taken"
+    if (PEER_STATE.peer && !PEER_STATE.peer.destroyed) {
+      try { PEER_STATE.peer.destroy(); } catch(e) {}
+      PEER_STATE.peer = null;
+    }
+
     const peerId = customId || ('HC_' + genRoomCode());
-    const peer = new Peer(peerId, {
-      // خادم STUN/TURN مجاني من Google — يعمل على الشبكة المحلية تلقائياً
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      }
-    });
-    peer.on('open', id => { PEER_STATE.peer = peer; resolve(id); });
-    peer.on('error', err => {
-      // على الشبكة المحلية — جرب بدون خادم STUN
-      const peer2 = new Peer(peerId);
-      peer2.on('open', id => { PEER_STATE.peer = peer2; resolve(id); });
-      peer2.on('error', e => reject(e));
-    });
+    const iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ];
+
+    function tryConnect(id, withStun) {
+      const cfg = withStun ? { config: { iceServers } } : {};
+      const peer = new Peer(id, cfg);
+      let settled = false;
+
+      peer.on('open', connId => {
+        if (settled) return;
+        settled = true;
+        PEER_STATE.peer = peer;
+        resolve(connId);
+      });
+
+      peer.on('error', err => {
+        if (settled) return;
+        if (err.type === 'unavailable-id' && withStun) {
+          // ID محجوز — جرب ID جديد
+          peer.destroy();
+          tryConnect('HC_' + genRoomCode(), true);
+        } else if (withStun) {
+          peer.destroy();
+          tryConnect(id, false); // جرب بدون STUN
+        } else {
+          settled = true;
+          reject(err);
+        }
+      });
+    }
+
+    tryConnect(peerId, true);
   });
 }
 
@@ -3672,21 +3702,37 @@ function handleMsg(msg, fromConn) {
   switch(msg.type) {
 
     case 'join_req':
-      // ✅ قبول تلقائي فوري — لا حاجة لموافقة المضيف
-      PEER_STATE.players.push({ name: msg.name, av: msg.av, conn: fromConn, accepted: true, isHost: false, ready: true, pts:0, ok:0, bad:0, skip:0 });
-      // إخبار الضيف بالقبول الفوري
-      fromConn.send({ type:'join_accept' });
+      // ✅ قبول تلقائي فوري
+      PEER_STATE.players.push({
+        name: msg.name, av: msg.av || '👤',
+        conn: fromConn, accepted: true,
+        isHost: false, ready: true,
+        pts:0, ok:0, bad:0, skip:0
+      });
+      // 1. أخبر الضيف بالقبول + أرسله قائمة اللاعبين الحالية
+      fromConn.send({ type:'join_accept', players: PEER_STATE.players.map(p=>({name:p.name,av:p.av,isHost:p.isHost,accepted:p.accepted})) });
+      // 2. حدّث شاشة المضيف
       G.renderHostPlayers();
       document.getElementById('rh-count').textContent = PEER_STATE.players.length;
-      // تحديث Firebase بعدد اللاعبين
+      // 3. أعلم بقية اللاعبين
+      broadcast({ type:'player_list', players: PEER_STATE.players.map(p=>({name:p.name,av:p.av,isHost:p.isHost,accepted:p.accepted})) });
+      // 4. حدّث Firebase
       if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
-      // إعلام الجميع بقائمة اللاعبين المحدّثة
-      broadcast({ type:'player_list', players: PEER_STATE.players.map(p => ({name:p.name,av:p.av,isHost:p.isHost,accepted:p.accepted})) });
+      // 5. toast للمضيف
+      G.showToast('✅ انضم ' + msg.name + ' للغرفة');
       break;
 
     case 'join_accept':
+      // ✅ دخلت الغرفة — عرض قائمة اللاعبين مباشرة
       document.getElementById('rg-status-icon').textContent = '✅';
-      document.getElementById('rg-status-text').textContent = 'تمت الموافقة! في انتظار المضيف...';
+      document.getElementById('rg-status-text').textContent = 'دخلت الغرفة! في انتظار بدء اللعبة...';
+      document.getElementById('rg-status-box').style.borderColor = 'var(--green)';
+      document.getElementById('rg-status-box').style.background = 'rgba(0,230,118,.05)';
+      // إذا جاءت قائمة اللاعبين مع الرد، اعرضها فوراً
+      if (msg.players) {
+        PEER_STATE.players = msg.players;
+        G.renderGuestView({ players: msg.players });
+      }
       break;
 
     case 'join_reject':
@@ -3722,6 +3768,12 @@ function handleMsg(msg, fromConn) {
         PEER_STATE.chat.push({ from: msg.from, text: msg.text });
         G.renderChat('guest');
       }
+      break;
+
+    case 'room_closed':
+      // المضيف أغلق الغرفة
+      G.showToast('⚠️ أغلق المضيف الغرفة');
+      setTimeout(() => G.go('pg-lobby'), 1500);
       break;
 
     case 'game_start':
@@ -5506,25 +5558,7 @@ function handleMsg(msg, fromConn) {
   _origHandleMsg(msg, fromConn);
 }
 
-// Patch doRegister to use selected avatar
-const _origDoRegister = G.doRegister.bind(G);
-G.doRegister = async function() {
-  // Temporarily patch the av used
-  const origSave = AUTH.save.bind(AUTH);
-  AUTH.save = function(u, f, av, uid) {
-    return origSave(u, f, G._selectedAv || av || '🔥', uid);
-  };
-  // Patch the DB write to use selected av
-  const origDB = window.DB;
-  if (window.DB) {
-    const origCollection = window.DB.collection.bind(window.DB);
-    window.DB._pendingAv = G._selectedAv || '🔥';
-  }
-  await _origDoRegister();
-  AUTH.save = origSave;
-};
-
-// Override doRegister to include av properly
+// doRegister — نسخة نهائية واحدة تستخدم الأفاتار المحدد
 G.doRegister = async function() {
   const username  = document.getElementById('reg-username')?.value.trim().toLowerCase();
   const fullname  = document.getElementById('reg-fullname')?.value.trim();
@@ -5558,9 +5592,7 @@ G.doRegister = async function() {
   } finally { G._authLoading(false); }
 };
 
-// Clean up voice on room close/leave
-const _origCloseRoom = G.closeRoom.bind(G);
-G.closeRoom = function() { VOICE.stop(); _origCloseRoom(); };
+// leaveRoom with voice cleanup
 const _origLeaveRoom = G.leaveRoom.bind(G);
 G.leaveRoom = function() { VOICE.stop(); _origLeaveRoom(); };
 
