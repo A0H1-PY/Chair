@@ -990,9 +990,37 @@ body.theme-purple {
 
       <button id="btn-do-login"    class="btn-fire" style="margin-top:4px" onclick="G.doLogin()">دخول 🔥</button>
       <button id="btn-do-register" class="btn-fire" style="margin-top:4px;display:none" onclick="G.doRegister()">إنشاء الحساب ✨</button>
+      <button id="btn-forgot" onclick="G.showForgotPassword()" style="background:none;border:none;color:var(--muted);font-family:Cairo,sans-serif;font-size:.82rem;cursor:pointer;margin-top:2px;text-decoration:underline;padding:4px">🔑 نسيت كلمة المرور؟</button>
     </div>
     <div class="copy-txt" style="margin-top:24px">© 2025 Seat Clash — جميع الحقوق محفوظة</div>
     <button class="admin-entry-btn" onclick="G.openAdminLogin()">⚙️</button>
+  </div>
+</div>
+
+<!-- ═══════════════ FORGOT PASSWORD MODAL ═══════════════ -->
+<div id="forgot-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:380px;animation:popIn .3s ease">
+    <div style="font-size:1.3rem;font-weight:900;color:var(--gold);margin-bottom:6px;text-align:center">🔑 استعادة كلمة المرور</div>
+    <div style="font-size:.78rem;color:var(--muted);text-align:center;margin-bottom:16px">أدخل اسم المستخدم وسيتم عرض تلميح أو تغيير كلمة المرور</div>
+    <!-- Step 1: Enter username -->
+    <div id="forgot-step1">
+      <div class="adm-field-label" style="margin-bottom:5px">اسم المستخدم</div>
+      <input id="forgot-username" class="adm-input" placeholder="اسم المستخدم" maxlength="20" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')G.forgotStep1()">
+      <button class="btn-fire" onclick="G.forgotStep1()">التالي ←</button>
+    </div>
+    <!-- Step 2: New password -->
+    <div id="forgot-step2" style="display:none">
+      <div id="forgot-user-info" style="background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);border-radius:10px;padding:10px;margin-bottom:14px;font-size:.82rem;color:var(--gold);text-align:center"></div>
+      <div class="adm-field-label" style="margin-bottom:5px">كلمة المرور الجديدة</div>
+      <input id="forgot-newpw" class="adm-input" type="password" placeholder="6 أحرف على الأقل" maxlength="30" style="margin-bottom:10px">
+      <div class="adm-field-label" style="margin-bottom:5px">تأكيد كلمة المرور</div>
+      <input id="forgot-newpw2" class="adm-input" type="password" placeholder="••••••••" maxlength="30" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')G.forgotStep2()">
+      <button class="btn-fire" onclick="G.forgotStep2()">تغيير كلمة المرور 🔒</button>
+    </div>
+    <div id="forgot-err" style="color:var(--red);font-size:.78rem;display:none;margin-top:8px;background:rgba(255,23,68,.1);border-radius:8px;padding:8px;text-align:center"></div>
+    <div id="forgot-ok" style="color:var(--green);font-size:.82rem;display:none;margin-top:8px;background:rgba(0,230,118,.1);border-radius:8px;padding:10px;text-align:center"></div>
+    <div id="forgot-loading" style="display:none;color:var(--muted);font-size:.8rem;text-align:center;margin-top:8px">⏳ جارٍ التحقق...</div>
+    <button onclick="G.closeForgotPassword()" style="background:none;border:none;color:var(--muted);font-family:Cairo,sans-serif;font-size:.82rem;cursor:pointer;margin-top:12px;width:100%;text-align:center">إغلاق ✕</button>
   </div>
 </div>
 
@@ -2570,11 +2598,7 @@ const G = {
       if (rem <= 0) { clearInterval(this._timer); this.onTimeout(); }
     }, 1000);
   },
-  stopTimer() {
-    if (this._timer) clearInterval(this._timer);
-    // ✅ إصلاح: قطع مراقب المؤقت لمنع تسريب الذاكرة
-    if (G._timerObs) { try { G._timerObs.disconnect(); } catch(e){} G._timerObs = null; }
-  },
+  stopTimer() { if (this._timer) clearInterval(this._timer); },
 
   onTimeout() {
     const s = this.s;
@@ -2954,6 +2978,67 @@ const G = {
 
 
   // ── AUTH ──
+  // ══════════════════════════════════════════════
+  //  نسيان كلمة المرور
+  // ══════════════════════════════════════════════
+  showForgotPassword() {
+    const modal = document.getElementById('forgot-modal');
+    modal.style.display = 'flex';
+    document.getElementById('forgot-step1').style.display = 'block';
+    document.getElementById('forgot-step2').style.display = 'none';
+    document.getElementById('forgot-err').style.display = 'none';
+    document.getElementById('forgot-ok').style.display = 'none';
+    document.getElementById('forgot-username').value = '';
+    document.getElementById('forgot-newpw').value = '';
+    document.getElementById('forgot-newpw2').value = '';
+    G._forgotUser = null;
+  },
+  closeForgotPassword() {
+    document.getElementById('forgot-modal').style.display = 'none';
+  },
+  async forgotStep1() {
+    const username = document.getElementById('forgot-username').value.trim().toLowerCase();
+    const errEl = document.getElementById('forgot-err');
+    const loadEl = document.getElementById('forgot-loading');
+    errEl.style.display = 'none';
+    if (!username) { errEl.textContent = '⚠️ أدخل اسم المستخدم'; errEl.style.display = 'block'; return; }
+    loadEl.style.display = 'block';
+    try {
+      if (!window.DB) throw new Error('no db');
+      const doc = await window.DB.collection('users').doc(username).get();
+      if (!doc.exists) { errEl.textContent = '❌ اسم المستخدم غير موجود'; errEl.style.display = 'block'; loadEl.style.display = 'none'; return; }
+      const data = doc.data();
+      G._forgotUser = username;
+      document.getElementById('forgot-user-info').innerHTML =
+        `${data.av || '👤'} <strong>${data.fullname}</strong><br><span style="color:var(--muted);font-size:.75rem">أدخل كلمة المرور الجديدة</span>`;
+      document.getElementById('forgot-step1').style.display = 'none';
+      document.getElementById('forgot-step2').style.display = 'block';
+    } catch(e) {
+      errEl.textContent = '⚠️ خطأ في الاتصال — حاول مرة أخرى'; errEl.style.display = 'block';
+    } finally { loadEl.style.display = 'none'; }
+  },
+  async forgotStep2() {
+    const pw  = document.getElementById('forgot-newpw').value;
+    const pw2 = document.getElementById('forgot-newpw2').value;
+    const errEl = document.getElementById('forgot-err');
+    const okEl  = document.getElementById('forgot-ok');
+    const loadEl = document.getElementById('forgot-loading');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    if (!pw || pw.length < 6) { errEl.textContent = '⚠️ كلمة المرور يجب أن تكون 6 أحرف على الأقل'; errEl.style.display = 'block'; return; }
+    if (pw !== pw2) { errEl.textContent = '⚠️ كلمتا المرور غير متطابقتين'; errEl.style.display = 'block'; return; }
+    if (!G._forgotUser) return;
+    loadEl.style.display = 'block';
+    try {
+      const newHashed = btoa(G._forgotUser + ':' + pw);
+      await window.DB.collection('users').doc(G._forgotUser).update({ pw: newHashed });
+      okEl.textContent = '✅ تم تغيير كلمة المرور بنجاح! يمكنك تسجيل الدخول الآن';
+      okEl.style.display = 'block';
+      setTimeout(() => G.closeForgotPassword(), 2500);
+    } catch(e) {
+      errEl.textContent = '⚠️ فشل التحديث — حاول مرة أخرى'; errEl.style.display = 'block';
+    } finally { loadEl.style.display = 'none'; }
+  },
+
   switchAuthTab(tab) {
     const isLogin = tab === 'login';
     document.getElementById('form-login').style.display    = isLogin ? 'block' : 'none';
@@ -2991,8 +3076,7 @@ const G = {
       if (!doc.exists) { G._authErr('❌ اسم المستخدم غير موجود'); return; }
       const data = doc.data();
       // Simple hash check (md5-like using btoa)
-      // ⚠️ تنبيه: btoa ليست تشفيراً حقيقياً - يُنصح باستخدام Firebase Authentication
-    const hashed = btoa(username + ':' + password);
+      const hashed = btoa(username + ':' + password);
       if (data.pw !== hashed) { G._authErr('❌ كلمة المرور خاطئة'); return; }
       AUTH.save(data.username, data.fullname, data.av || '🔥', username);
       // Load this user's stats
@@ -3109,31 +3193,13 @@ const G = {
           timePerQ: ROOM.timePerQ || 30,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        // ✅ إصلاح: تحديث وقت النشاط كل 5 دقائق لإبقاء الغرفة نشطة
-        window._roomHeartbeat = setInterval(() => {
-          if (window._roomDocRef && PEER_STATE.isHost) {
-            window._roomDocRef.update({ lastActive: firebase.firestore.FieldValue.serverTimestamp() })
-              .catch(() => {});
-          } else {
-            clearInterval(window._roomHeartbeat);
-          }
-        }, 300000); // كل 5 دقائق
-        // حذف تلقائي بعد 3 ساعات
-        setTimeout(() => {
-          if (window._roomDocRef) {
-            window._roomDocRef.update({ open: false }).catch(()=>{});
-            window._roomDocRef = null;
-          }
-          clearInterval(window._roomHeartbeat);
-        }, 10800000);
+        // Auto-delete after 2 hours
+        setTimeout(() => window._roomDocRef?.delete(), 7200000);
       }
       // استقبال اتصالات الضيوف
       PEER_STATE.peer.on('connection', conn => {
         conn.on('open', () => {
-          // ✅ إصلاح: منع إضافة نفس الاتصال مرتين
-          if (!PEER_STATE.conns.includes(conn)) {
-            PEER_STATE.conns.push(conn);
-          }
+          PEER_STATE.conns.push(conn);
           document.getElementById('rh-count').textContent = PEER_STATE.players.length;
           // Update player count in Firebase
           if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
@@ -3277,23 +3343,17 @@ const G = {
     }
   },
   leaveRoom() {
-    if(PEER_STATE.conn) { try { PEER_STATE.conn.close(); } catch(e){} }
-    if(PEER_STATE.peer) { try { PEER_STATE.peer.destroy(); } catch(e){} }
-    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = []; PEER_STATE.players = [];
+    if(PEER_STATE.conn) PEER_STATE.conn.close();
+    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
+    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = [];
     G.go('pg-lobby');
   },
   closeRoom() {
-    // ✅ إصلاح: إيقاف heartbeat وإغلاق الغرفة في Firebase
-    if(window._roomHeartbeat) { clearInterval(window._roomHeartbeat); window._roomHeartbeat = null; }
-    if(window._roomDocRef) {
-      window._roomDocRef.update({ open: false, closedAt: firebase.firestore.FieldValue.serverTimestamp() })
-        .catch(e => console.warn('Room close Firebase error:', e));
-      window._roomDocRef = null;
-    }
     broadcast({ type:'room_closed' });
-    PEER_STATE.conns.forEach(c => { try { c.close(); } catch(e){} });
-    if(PEER_STATE.peer) { try { PEER_STATE.peer.destroy(); } catch(e){} }
-    PEER_STATE.peer = null; PEER_STATE.conns = []; PEER_STATE.players = [];
+    PEER_STATE.conns.forEach(c => c.close());
+    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
+    PEER_STATE.peer = null; PEER_STATE.conns = [];
+    if(window._roomDocRef) { window._roomDocRef.update({ open: false }); window._roomDocRef = null; }
     G.go('pg-lobby');
   },
   startRoomPoll(role) {},  // لا يلزم مع P2P
@@ -3313,14 +3373,31 @@ const G = {
     const box = document.getElementById('rh-requests');
     const pending = PEER_STATE.players.filter(p => !p.isHost && !p.accepted);
     if(!pending.length){ sec.style.display='none'; return; }
+
+    // ✅ إصلاح: إظهار القسم بوضوح مع تأثير بصري للفت الانتباه
     sec.style.display='block';
+    sec.style.animation = 'none';
+    void sec.offsetWidth; // force reflow
+    sec.style.animation = 'fadeUp 0.3s ease';
+
     box.innerHTML = pending.map(p =>
-      `<div class="join-request">
-        <span style="font-size:1.2rem">${p.av||'👤'}</span>
-        <span class="join-req-name">${p.name}</span>
-        <button class="join-req-acc" onclick="G.acceptPlayer('${p.name}')">✅ قبول</button>
-        <button class="join-req-rej" onclick="G.rejectPlayer('${p.name}')">❌</button>
+      `<div class="join-request" style="display:flex;align-items:center;gap:10px;background:rgba(255,215,0,.08);border:2px solid var(--gold);border-radius:14px;padding:12px 14px;margin-bottom:8px;animation:pulse 1.5s infinite">
+        <span style="font-size:1.4rem">${p.av||'👤'}</span>
+        <span style="font-weight:900;flex:1;font-size:.95rem">${p.name}</span>
+        <button onclick="G.acceptPlayer('${p.name}')" style="background:linear-gradient(135deg,#00c853,#00e676);border:none;border-radius:10px;padding:8px 16px;color:#000;font-family:Cairo,sans-serif;font-weight:900;cursor:pointer;font-size:.85rem">✅ قبول</button>
+        <button onclick="G.rejectPlayer('${p.name}')" style="background:rgba(255,23,68,.15);border:2px solid var(--red);border-radius:10px;padding:8px 12px;color:var(--red);font-family:Cairo,sans-serif;font-weight:900;cursor:pointer;font-size:.85rem">❌</button>
       </div>`).join('');
+
+    // ✅ تنبيه صوتي وبصري
+    SFX.play('correct');
+    // flash title badge
+    const badge = document.querySelector('#pg-room-host [style*="ADMIN"]');
+    if (badge) {
+      badge.textContent = `⏳ ${pending.length} طلب انضمام`;
+      badge.style.background = 'rgba(255,215,0,.2)';
+      badge.style.borderColor = 'var(--gold)';
+      badge.style.color = 'var(--gold)';
+    }
   },
   acceptPlayer(player) {
     const p = PEER_STATE.players.find(x => x.name === player);
@@ -3331,6 +3408,14 @@ const G = {
       G.renderHostPlayers();
       G.renderRequests();
       document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+      // ✅ إعادة badge المضيف لحالته الطبيعية إذا لم يبق طلبات
+      const pending = PEER_STATE.players.filter(x => !x.isHost && !x.accepted);
+      if (pending.length === 0) {
+        const badge = document.querySelector('#pg-room-host [style*="ADMIN"], #pg-room-host [style*="طلب"]');
+        if (badge) { badge.textContent = '👑 ADMIN'; badge.style.background='rgba(255,69,0,.12)'; badge.style.borderColor='var(--fire)'; badge.style.color='var(--fire)'; }
+      }
+      SFX.play('correct');
+      G.showToast(`✅ تم قبول ${p.name}`);
     }
   },
   rejectPlayer(player) {
@@ -3981,6 +4066,12 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
         <button class="btn-ghost" style="flex:1;min-width:140px" onclick="G.previewExport()">
           👁️ معاينة الملف
         </button>
+        <button class="btn-ghost" style="flex:1;min-width:140px;border-color:var(--gold);color:var(--gold)" onclick="G.openGithubSettings()">
+          🐙 GitHub Sync
+        </button>
+        <button class="btn-ghost" style="flex:1;min-width:140px" onclick="G.exportQsAsRoboxDownload()">
+          ⬇️ تحميل robox
+        </button>
       </div>
       <div id="export-preview" style="display:none;margin-top:14px">
         <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
@@ -4304,7 +4395,6 @@ body.theme-purple {
 // ═══════════════════════════════════════════
 //  ADMIN PANEL
 // ═══════════════════════════════════════════
-// ✅ تنبيه: كلمة المرور هنا مرئية في الكود المصدري - يُنصح بنقلها إلى Firebase Auth لاحقاً
 const ADMIN_PASS = 'ifyoudontlikethe';
 
 // Extra questions added by admin, keyed by cat+diff
@@ -4563,52 +4653,30 @@ Object.assign(G, {
     if (!G._parsedQs || G._parsedQs.length === 0) return;
     const cat = G._admCatUpload;
     const batch = [];
-    let skipped = 0;
-    let added = 0;
-
     G._parsedQs.forEach(q => {
+      const diff = q.type === 'mcq' ? 'easy' : q.type === 'tf' ? 'med' : 'hard';
       if (!QDB[cat]) QDB[cat] = { easy:[], med:[], hard:[] };
-      // ✅ فحص التكرار: تجاهل السؤال إذا كان موجوداً مسبقاً في أي مستوى
-      const qText = (q.q || '').trim().toLowerCase();
-      const alreadyExists =
-        (QDB[cat].easy  || []).some(x => (x.q||'').trim().toLowerCase() === qText) ||
-        (QDB[cat].med   || []).some(x => (x.q||'').trim().toLowerCase() === qText) ||
-        (QDB[cat].hard  || []).some(x => (x.q||'').trim().toLowerCase() === qText);
-      if (alreadyExists) { skipped++; return; }
-
-      if (q.type === 'mcq') {
-        QDB[cat].easy.push({q:q.q, o:q.o, a:q.a});
-        batch.push({diff:'easy', q:q.q, o:q.o, a:q.a, type:'mcq'});
-      } else if (q.type === 'tf') {
-        QDB[cat].med.push({q:q.q, a:q.a});
-        batch.push({diff:'med', q:q.q, a:q.a, type:'tf'});
-      } else {
-        QDB[cat].hard.push({q:q.q, a:q.a});
-        batch.push({diff:'hard', q:q.q, a:q.a, type:'open'});
-      }
-      added++;
+      if (q.type === 'mcq')     { QDB[cat].easy.push({q:q.q,o:q.o,a:q.a}); batch.push({diff:'easy',q:q.q,o:q.o,a:q.a,type:'mcq'}); }
+      else if (q.type === 'tf') { QDB[cat].med.push({q:q.q,a:q.a});         batch.push({diff:'med', q:q.q,a:q.a,type:'tf'}); }
+      else                      { QDB[cat].hard.push({q:q.q,a:q.a});         batch.push({diff:'hard',q:q.q,a:q.a,type:'open'}); }
     });
-
     G._parsedQs = null;
     document.getElementById('btn-import').style.display = 'none';
     document.getElementById('file-input').value = '';
     document.getElementById('upload-filename').textContent = 'لم يُختر ملف بعد';
-    const skipMsg = skipped > 0 ? ` &nbsp;|&nbsp; ⚠️ تخطي ${skipped} مكرر` : '';
-    if (batch.length === 0) {
-      document.getElementById('parse-result').innerHTML =
-        `<div class="parse-ok-box" style="border-color:var(--gold)">⚠️ جميع الأسئلة (${skipped}) موجودة مسبقاً — لم يُضف شيء</div>`;
-      return;
-    }
     document.getElementById('parse-result').innerHTML =
-      `<div class="parse-ok-box">🎉 جارٍ الحفظ...<br><small>✅ جديد: ${added}${skipMsg}</small></div>`;
+      `<div class="parse-ok-box">🎉 تم الاستيراد! جارٍ الحفظ في Firebase...</div>`;
     G._saveQsToFirestore(cat, batch).then(count => {
       document.getElementById('parse-result').innerHTML =
-        `<div class="parse-ok-box">🎉 تم حفظ ${count} سؤال جديد في Firebase!${skipMsg}</div>`;
+        `<div class="parse-ok-box">🎉 تم حفظ ${count} سؤال في Firebase بنجاح!</div>`;
       G.renderBrowse();
+      // ✅ تزامن تلقائي مع GitHub بعد الحفظ
+      G._autoSyncGithub();
     }).catch(() => {
       document.getElementById('parse-result').innerHTML =
-        `<div class="parse-ok-box">✅ استُورد ${added} سؤال في الذاكرة${skipMsg}</div>`;
+        `<div class="parse-ok-box">✅ استُورد في الذاكرة (تعذر الحفظ في Firebase)</div>`;
       G.renderBrowse();
+      G._autoSyncGithub();
     });
   },
 
@@ -4719,17 +4787,7 @@ Object.assign(G, {
   },
   deleteQ(cat, diff, idx) {
     if (QDB[cat] && QDB[cat][diff]) {
-      const q = QDB[cat][diff][idx];
-      if (!q) return;
       QDB[cat][diff].splice(idx, 1);
-      // ✅ حذف من Firebase أيضاً إذا كان موجوداً
-      if (window.DB && q.q) {
-        window.DB.collection('questions')
-          .where('q', '==', q.q).where('cat', '==', cat)
-          .get().then(snap => {
-            snap.forEach(doc => doc.ref.delete());
-          }).catch(e => console.warn('Delete from Firebase error:', e));
-      }
       G.renderBrowse();
     }
   },
@@ -4784,6 +4842,18 @@ Object.assign(G, {
     return { code: out, total };
   },
 
+  exportQsAsRoboxDownload() {
+    const text = G.exportQsAsRobox();
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `seat-clash-questions-${new Date().toISOString().slice(0,10)}.robox`;
+    a.click();
+    URL.revokeObjectURL(url);
+    G.showToast('⬇️ جارٍ التحميل...');
+  },
+
   exportAllQuestions() {
     const { code, total } = G.buildExportJS();
     const blob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
@@ -4800,6 +4870,10 @@ Object.assign(G, {
     setTimeout(() => btn.textContent = orig, 3000);
   },
 
+  openGithubBtn() {
+    G.openGithubSettings();
+  },
+
   previewExport() {
     const { code, total } = G.buildExportJS();
     const previewEl = document.getElementById('export-preview');
@@ -4807,6 +4881,28 @@ Object.assign(G, {
     document.getElementById('export-preview-info').textContent =
       `${total} سؤال — ${(new Blob([code]).size / 1024).toFixed(1)} كيلوبايت`;
     previewEl.style.display = previewEl.style.display === 'none' ? 'block' : 'none';
+  },
+
+  // ══════════════════════════════════════════════
+  //  إعدادات GitHub في لوحة الأدمن
+  // ══════════════════════════════════════════════
+  openGithubSettings() {
+    G.loadGithubConfig();
+    const modal = document.getElementById('github-settings-modal');
+    if (modal) {
+      document.getElementById('gh-repo-input').value = G._GITHUB_REPO || '';
+      document.getElementById('gh-file-input').value = G._GITHUB_FILE || 'questions/questions.robox';
+      modal.style.display = 'flex';
+    }
+  },
+  saveGithubSettings() {
+    const repo  = document.getElementById('gh-repo-input').value.trim();
+    const token = document.getElementById('gh-token-input').value.trim();
+    const file  = document.getElementById('gh-file-input').value.trim() || 'questions/questions.robox';
+    if (!repo) { G.showToast('⚠️ أدخل اسم المستودع'); return; }
+    G.setGithubConfig(repo, token, file);
+    if (token) G._GITHUB_TOKEN = token; // keep in memory only
+    document.getElementById('github-settings-modal').style.display = 'none';
   },
 
   // ── Help ──
@@ -4903,6 +4999,34 @@ Added questions are saved immediately and used in upcoming games within the same
   });
 })();
 </script>
+
+<!-- ═══════════════ GITHUB SETTINGS MODAL ═══════════════ -->
+<div id="github-settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:3000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:400px;animation:popIn .3s ease">
+    <div style="font-size:1.2rem;font-weight:900;color:var(--gold);margin-bottom:4px;text-align:center">🐙 إعدادات GitHub</div>
+    <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-bottom:16px;line-height:1.6">
+      ربط الأسئلة بـ GitHub لضمان عدم فقدانها أبداً.<br>
+      يتم الحفظ تلقائياً عند كل استيراد.
+    </div>
+    <div class="adm-field-label" style="margin-bottom:5px">🗂️ المستودع (username/repo)</div>
+    <input id="gh-repo-input" class="adm-input" placeholder="مثال: ahmed/seat-clash" style="margin-bottom:12px">
+    <div class="adm-field-label" style="margin-bottom:5px">🔑 Personal Access Token</div>
+    <input id="gh-token-input" class="adm-input" type="password" placeholder="ghp_xxxxxxxxxxxx" style="margin-bottom:4px">
+    <div style="font-size:.65rem;color:var(--muted);margin-bottom:12px">
+      من GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → اختر صلاحية <strong>repo</strong>
+    </div>
+    <div class="adm-field-label" style="margin-bottom:5px">📄 مسار الملف في المستودع</div>
+    <input id="gh-file-input" class="adm-input" placeholder="questions/questions.robox" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <button class="btn-fire" onclick="G.saveGithubSettings()" style="flex:2">💾 حفظ الإعدادات</button>
+      <button onclick="document.getElementById('github-settings-modal').style.display='none'" class="btn-ghost" style="flex:1">إلغاء</button>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button onclick="G.syncToGithub()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:8px;color:var(--muted);font-family:Cairo,sans-serif;font-size:.78rem;cursor:pointer;flex:1">🔄 مزامنة الآن</button>
+      <button onclick="G.exportQsAsRoboxDownload()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:8px;color:var(--muted);font-family:Cairo,sans-serif;font-size:.78rem;cursor:pointer;flex:1">⬇️ تحميل robox</button>
+    </div>
+  </div>
+</div>
 
 <button id="installBtn" onclick="installApp()" style="
 display:none;
@@ -5253,6 +5377,92 @@ const _origNextQ = G.nextQuestion?.bind(G);
 // ════════════════════════════════════════════════════════
 Object.assign(G, {
 
+  // ══════════════════════════════════════════════════════════
+  //  GitHub Sync: تصدير الأسئلة كملف robox تلقائياً
+  // ══════════════════════════════════════════════════════════
+  _GITHUB_REPO: '',  // مثال: 'username/seat-clash'
+  _GITHUB_TOKEN: '', // Personal Access Token من GitHub Settings
+  _GITHUB_FILE: 'questions/questions.robox',
+
+  setGithubConfig(repo, token, file) {
+    G._GITHUB_REPO  = repo  || G._GITHUB_REPO;
+    G._GITHUB_TOKEN = token || G._GITHUB_TOKEN;
+    G._GITHUB_FILE  = file  || G._GITHUB_FILE;
+    localStorage.setItem('sc_gh_repo',  G._GITHUB_REPO);
+    localStorage.setItem('sc_gh_file',  G._GITHUB_FILE);
+    // لا نحفظ التوكن في localStorage لأسباب أمنية
+    G.showToast('✅ تم حفظ إعدادات GitHub');
+  },
+
+  loadGithubConfig() {
+    G._GITHUB_REPO  = localStorage.getItem('sc_gh_repo')  || '';
+    G._GITHUB_FILE  = localStorage.getItem('sc_gh_file')  || 'questions/questions.robox';
+  },
+
+  exportQsAsRobox() {
+    // تحويل كل الأسئلة إلى صيغة robox
+    const lines = ['// ═══════════════════════════════════════════', '// Seat Clash Questions — Auto Export', `// ${new Date().toLocaleString('ar-SA')}`, '// ═══════════════════════════════════════════', ''];
+    Object.entries(QDB).forEach(([cat, db]) => {
+      const catLabel = (CAT_META[cat]||{}).label || cat;
+      lines.push(`# ${catLabel} (${cat})`);
+      (db.easy||[]).forEach(q => {
+        if (q.o && q.o.length === 4) {
+          const opts = [...q.o];
+          const correct = opts[q.a];
+          opts[3] = opts[3] + ' / ' + correct;
+          // But format properly: Q | o1 | o2 | o3 | o4 / correct
+          lines.push(`${q.q} | ${opts[0]} | ${opts[1]} | ${opts[2]} | ${q.o[3]} / ${correct}`);
+        }
+      });
+      (db.med||[]).forEach(q => {
+        const hint = q.hint || 'صح أو خطأ';
+        lines.push(`${q.q} | ${hint} | ${q.a === true ? 'True' : 'False'}`);
+      });
+      lines.push('');
+    });
+    return lines.join('\n');
+  },
+
+  async syncToGithub() {
+    G.loadGithubConfig();
+    if (!G._GITHUB_REPO || !G._GITHUB_TOKEN) {
+      G.showToast('⚠️ أضف إعدادات GitHub أولاً في لوحة الأدمن');
+      return false;
+    }
+    try {
+      const content = G.exportQsAsRobox();
+      const encoded = btoa(unescape(encodeURIComponent(content)));
+      const apiUrl = `https://api.github.com/repos/${G._GITHUB_REPO}/contents/${G._GITHUB_FILE}`;
+      // Get current SHA (needed for update)
+      let sha = '';
+      try {
+        const getRes = await fetch(apiUrl, { headers: { 'Authorization': `token ${G._GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+        if (getRes.ok) { const d = await getRes.json(); sha = d.sha || ''; }
+      } catch(e) {}
+      // Push file
+      const body = { message: `🔄 تحديث الأسئلة — ${new Date().toLocaleDateString('ar-SA')}`, content: encoded };
+      if (sha) body.sha = sha;
+      const res = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${G._GITHUB_TOKEN}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) { G.showToast('✅ تم الحفظ على GitHub بنجاح!'); return true; }
+      else { const err = await res.json(); G.showToast('❌ فشل GitHub: ' + (err.message||'خطأ')); return false; }
+    } catch(e) {
+      G.showToast('⚠️ تعذر الاتصال بـ GitHub');
+      return false;
+    }
+  },
+
+  // تلقائياً: حفظ على جيت هاب بعد كل استيراد ناجح
+  async _autoSyncGithub() {
+    G.loadGithubConfig();
+    if (G._GITHUB_REPO && G._GITHUB_TOKEN) {
+      await G.syncToGithub();
+    }
+  },
+
   async _saveQsToFirestore(cat, batch) {
     if (!window.DB) throw new Error('no db');
     const col = window.DB.collection('questions');
@@ -5261,13 +5471,7 @@ Object.assign(G, {
     let total = 0;
     for (const chunk of chunks) {
       const wr = window.DB.batch();
-      chunk.forEach(q => {
-        // ✅ إصلاح: حذف الحقول غير المعرّفة قبل الحفظ
-        const cleanQ = {};
-        Object.entries({ cat, ...q }).forEach(([k,v]) => { if (v !== undefined) cleanQ[k] = v; });
-        cleanQ.addedAt = firebase.firestore.FieldValue.serverTimestamp();
-        wr.set(col.doc(), cleanQ);
-      });
+      chunk.forEach(q => { wr.set(col.doc(), { cat, ...q, addedAt: firebase.firestore.FieldValue.serverTimestamp() }); });
       await wr.commit();
       total += chunk.length;
     }
@@ -5287,13 +5491,7 @@ Object.assign(G, {
         if (!QDB[cat][diff]) QDB[cat][diff] = [];
         // Avoid duplicates
         const exists = QDB[cat][diff].some(x => x.q === q.q);
-        if (!exists) {
-          // ✅ إصلاح: توحيد اسم حقل الخيارات (opts → o)
-          const entry = { q: q.q, a: q.a, type: q.type || 'mcq' };
-          if (q.o) entry.o = q.o;
-          else if (q.opts) entry.o = q.opts;
-          QDB[cat][diff].push(entry);
-        }
+        if (!exists) QDB[cat][diff].push({ q: q.q, a: q.a, type: q.type || 'mcq', opts: q.opts });
       });
       console.log(`🔥 Loaded ${snap.size} questions from Firestore`);
     } catch(e) { console.warn('Firestore questions load failed', e); }
@@ -5528,60 +5726,6 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
     .then(()=>console.log("Seat Clash ready"));
 }
-
-// ════════════════════════════════════════════════════════
-//  إصلاح: إغلاق الغرفة عند إغلاق المتصفح أو التبويب
-// ════════════════════════════════════════════════════════
-window.addEventListener('beforeunload', () => {
-  // إغلاق الغرفة في Firebase إذا كان المستخدم مضيفاً
-  if (window._roomDocRef && PEER_STATE.isHost) {
-    // navigator.sendBeacon لضمان الإرسال حتى عند الإغلاق
-    const url = `https://firestore.googleapis.com/v1/projects/abde-a49ec/databases/(default)/documents/rooms/${PEER_STATE.roomCode}`;
-    try {
-      window._roomDocRef.update({ open: false });
-    } catch(e) {}
-  }
-  // إغلاق اتصالات P2P
-  if (PEER_STATE.peer) {
-    try { PEER_STATE.peer.destroy(); } catch(e) {}
-  }
-});
-
-// ════════════════════════════════════════════════════════
-//  إصلاح: تنظيف الغرف القديمة تلقائياً عند التحميل
-// ════════════════════════════════════════════════════════
-async function cleanupStaleRooms() {
-  if (!window.DB) return;
-  try {
-    const cutoff = new Date(Date.now() - 7200000); // أقدم من ساعتين
-    const snap = await window.DB.collection('rooms')
-      .where('open', '==', true)
-      .get();
-    const batch = window.DB.batch();
-    let count = 0;
-    snap.docs.forEach(doc => {
-      const data = doc.data();
-      const createdAt = data.createdAt?.toDate?.();
-      if (createdAt && createdAt < cutoff) {
-        batch.update(doc.ref, { open: false });
-        count++;
-      }
-    });
-    if (count > 0) {
-      await batch.commit();
-      console.log(`🧹 تم تنظيف ${count} غرفة قديمة`);
-    }
-  } catch(e) {
-    console.warn('Room cleanup error:', e);
-  }
-}
-
-// تنظيف الغرف القديمة عند فتح صفحة الغرف
-const _origBrowseRooms = G.browseRooms.bind(G);
-G.browseRooms = function() {
-  cleanupStaleRooms();
-  _origBrowseRooms();
-};
 
 // Firebase initialized in <head>
 </script>
