@@ -15,6 +15,26 @@
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ═══ Firebase Early Init ═══
+(function() {
+  try {
+    const firebaseConfig = {
+      apiKey: "AIzaSyCiIMxrbN9z9a54f6j7mckuDi7o53ygMko",
+      authDomain: "abde-a49ec.firebaseapp.com",
+      projectId: "abde-a49ec",
+      storageBucket: "abde-a49ec.firebasestorage.app",
+      messagingSenderId: "1069572535490",
+      appId: "1:1069572535490:web:193fb083e47b388287f75b"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    window.DB = firebase.firestore();
+    console.log("🔥 Firebase ready");
+  } catch(e) {
+    console.warn("Firebase init error:", e);
+  }
+})();
+</script>
 <style>
 :root {
   --fire: #ff4500;
@@ -30,7 +50,6 @@
   --text: #ffffff;
   --muted: #555580;
   --r: 16px;
-  
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -843,6 +862,61 @@ body::before {
 .lb-name { flex: 1; font-weight: 900; }
 .lb-score { color: var(--gold); font-weight: 900; font-size: 1.1rem; }
 
+
+/* ── THEMES ── */
+body.theme-gold {
+  --fire: #d4a017; --fire2: #f0c040; --gold: #ffe066;
+  --dark: #1a1200; --card: #1f1800; --card2: #2a2200;
+  --border: #3a3000;
+}
+body.theme-ocean {
+  --fire: #00b4d8; --fire2: #0077b6; --gold: #90e0ef;
+  --dark: #03045e; --card: #023e8a; --card2: #0a1628;
+  --border: #0a3870;
+}
+body.theme-light {
+  --fire: #ff4500; --fire2: #ff8c00; --gold: #cc8800;
+  --dark: #f5f5f5; --card: #ffffff; --card2: #f0f0f0;
+  --border: #dddddd; --text: #111111; --muted: #888888;
+}
+body.theme-purple {
+  --fire: #b44fdc; --fire2: #7c3aed; --gold: #e879f9;
+  --dark: #0d0618; --card: #160d27; --card2: #1e1035;
+  --border: #2d1a4a;
+}
+
+/* ── THEME PICKER ── */
+.theme-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 16px; }
+.theme-dot {
+  width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: transform .2s;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+}
+.theme-dot:hover { transform: scale(1.15); }
+.theme-dot.active { border-color: #fff; }
+
+/* ── LEVEL BADGE ── */
+.level-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,215,0,.12); border: 1px solid rgba(255,215,0,.3);
+  border-radius: 20px; padding: 4px 12px; font-size: .72rem; font-weight: 900; color: var(--gold);
+}
+.xp-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 4px; overflow: hidden; }
+.xp-bar-fill { height: 100%; background: linear-gradient(90deg,var(--fire),var(--gold)); border-radius: 4px; transition: width .6s ease; }
+
+/* ── STATS CARD ── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; text-align: center; }
+.stat-val { font-size: 1.6rem; font-weight: 900; color: var(--gold); }
+.stat-lbl { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+
+/* ── SPECTATOR ── */
+.spec-badge { background: rgba(64,196,255,.15); color: var(--blue); border: 1px solid rgba(64,196,255,.3); border-radius: 10px; padding: 2px 10px; font-size: .7rem; font-weight: 900; }
+
+/* ── SOUND TOGGLE ── */
+.sound-btn { background: none; border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px; color: var(--muted); cursor: pointer; font-size: .8rem; transition: all .2s; }
+.sound-btn.active { border-color: var(--fire); color: var(--fire); }
+
 </style>
 </head>
 <body>
@@ -874,7 +948,8 @@ body::before {
 <!-- ═══════════════ SPLASH / MODE SELECT ═══════════════ -->
 <div id="pg-splash" class="page">
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px;text-align:center">
-    <div id="splash-greeting" style="font-size:.95rem;color:var(--muted);margin-bottom:6px"></div>
+    <div id="splash-greeting" style="font-size:.95rem;color:var(--muted);margin-bottom:4px"></div>
+    <div id="splash-level" style="margin-bottom:8px"></div>
     <span style="font-size:4.5rem;animation:flicker 1.4s infinite alternate">🔥</span>
     <div class="game-title">الكرسي الساخن</div>
     <div class="game-ver" style="margin-bottom:28px">الإصدار الخامس</div>
@@ -904,7 +979,11 @@ body::before {
       </div>
     </div>
 
-    <button class="btn-ghost" style="max-width:380px;width:100%;margin-bottom:10px" onclick="G.openAdminLogin()">⚙️ لوحة الإدارة</button>
+    <div style="width:100%;max-width:380px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <button class="btn-ghost" onclick="G.showProfile()">👤 ملفي</button>
+      <button class="btn-ghost" onclick="G.showLeaderboard()">🏆 المتصدرون</button>
+    </div>
+    <button class="btn-ghost" style="max-width:380px;width:100%;margin-bottom:8px" onclick="G.openAdminLogin()">⚙️ لوحة الإدارة</button>
     <button class="btn-ghost" style="max-width:380px;width:100%;background:transparent;border-color:transparent;color:var(--muted);font-size:.8rem" onclick="G.logout()">تسجيل خروج ↩</button>
   </div>
 </div>
@@ -975,11 +1054,62 @@ body::before {
 </div>
 </div>
 
+
+<!-- ═══════════════ PROFILE PAGE ═══════════════ -->
+<div id="pg-profile" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-splash')" style="margin-top:16px">← رجوع</button>
+  <div class="page-header"><h2>👤 ملفي الشخصي</h2></div>
+
+  <!-- Avatar + Name + Level -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;text-align:center;margin-bottom:16px">
+    <div id="prof-av" style="font-size:3.5rem;margin-bottom:8px">🔥</div>
+    <div id="prof-name" style="font-size:1.3rem;font-weight:900;margin-bottom:6px"></div>
+    <div id="prof-level-badge" class="level-badge" style="margin-bottom:8px">⭐ مبتدئ · المستوى 1</div>
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px" id="prof-xp-text">0 / 100 XP</div>
+    <div class="xp-bar-wrap" style="max-width:200px;margin:0 auto"><div class="xp-bar-fill" id="prof-xp-bar" style="width:0%"></div></div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-val" id="st-wins">0</div><div class="stat-lbl">🏆 انتصارات</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-games">0</div><div class="stat-lbl">🎮 مباريات</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-correct">0</div><div class="stat-lbl">✅ إجابات صحيحة</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-streak">0</div><div class="stat-lbl">🔥 أطول سلسلة</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-pts">0</div><div class="stat-lbl">⭐ إجمالي النقاط</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-winrate">0%</div><div class="stat-lbl">📊 نسبة الفوز</div></div>
+  </div>
+
+  <!-- Theme Picker -->
+  <div style="font-size:.8rem;font-weight:900;color:var(--muted);margin-bottom:10px">🎨 اختر الثيم</div>
+  <div class="theme-grid">
+    <div class="theme-dot active" id="th-dark"   style="background:linear-gradient(135deg,#060612,#1e1e3a)" onclick="G.setTheme('dark')"   title="داكن">🌙</div>
+    <div class="theme-dot"        id="th-gold"   style="background:linear-gradient(135deg,#1a1200,#3a3000)" onclick="G.setTheme('gold')"   title="ذهبي">✨</div>
+    <div class="theme-dot"        id="th-ocean"  style="background:linear-gradient(135deg,#03045e,#0077b6)" onclick="G.setTheme('ocean')"  title="محيط">🌊</div>
+    <div class="theme-dot"        id="th-light"  style="background:linear-gradient(135deg,#f5f5f5,#ddd)"   onclick="G.setTheme('light')"  title="فاتح">☀️</div>
+    <div class="theme-dot"        id="th-purple" style="background:linear-gradient(135deg,#0d0618,#2d1a4a)" onclick="G.setTheme('purple')" title="بنفسجي">💜</div>
+  </div>
+
+  <!-- Sound Toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:16px">
+    <div style="font-size:.9rem;font-weight:900">🔊 الأصوات والموسيقى</div>
+    <div style="display:flex;gap:8px">
+      <button id="sfx-btn" class="sound-btn active" onclick="G.toggleSfx()">🔔 مؤثرات</button>
+      <button id="bgm-btn" class="sound-btn" onclick="G.toggleBgm()">🎵 موسيقى</button>
+    </div>
+  </div>
+
+  <button class="btn-ghost" onclick="G.logout()" style="color:var(--red);border-color:var(--red)">تسجيل خروج ↩</button>
+</div>
+</div>
+
 <!-- ═══════════════ BROWSE ROOMS ═══════════════ -->
 <div id="pg-browse-rooms" class="page">
 <div class="wrap">
   <button class="btn-back" onclick="G.go('pg-lobby')" style="margin-top:16px">← رجوع</button>
-  <div class="page-header"><h2>🌍 الغرف العالمية</h2><p>انضم لأي غرفة في العالم</p></div>
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div class="page-header" style="margin-bottom:10px"><h2>🌍 الغرف العالمية</h2><p>انضم أو شاهد أي غرفة</p></div>
+  </div>
 
   <!-- Search + Code -->
   <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -1019,6 +1149,35 @@ body::before {
   <div id="lb-list" style="display:flex;flex-direction:column;gap:10px">
     <div style="text-align:center;padding:40px;color:var(--muted)">🔄 جارٍ التحميل...</div>
   </div>
+</div>
+</div>
+
+
+<!-- ═══════════════ SPECTATOR PAGE ═══════════════ -->
+<div id="pg-spectate" class="page">
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 10px">
+    <div>
+      <div id="spec-room-name" style="font-size:1.1rem;font-weight:900;color:var(--gold)"></div>
+      <div class="spec-badge" style="margin-top:4px">👁️ وضع المشاهدة</div>
+    </div>
+    <button onclick="G.leaveSpectate()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--muted);cursor:pointer;font-family:Cairo,sans-serif">مغادرة</button>
+  </div>
+
+  <div id="spec-status" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;margin-bottom:14px">
+    <div style="font-size:2rem;margin-bottom:8px">👁️</div>
+    <div style="font-weight:900;color:var(--muted)">في انتظار بدء المباراة...</div>
+  </div>
+
+  <div id="spec-scores" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+
+  <div id="spec-question-box" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px">
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px" id="spec-q-meta"></div>
+    <div id="spec-q-text" style="font-size:1rem;font-weight:900;line-height:1.5;margin-bottom:12px"></div>
+    <div id="spec-options" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <div id="spec-chat" class="chat-box" style="margin-bottom:8px"></div>
 </div>
 </div>
 
@@ -1947,6 +2106,8 @@ const AUTH = {
   save(fname, lname) {
     AUTH.user = { fname, lname, full: fname + ' ' + lname, av: '🔥' };
     localStorage.setItem('hc_user', JSON.stringify(AUTH.user));
+    if (typeof STATS !== 'undefined') STATS.load();
+    if (typeof THEME !== 'undefined') THEME.load();
   },
   clear() {
     localStorage.removeItem('hc_user');
@@ -2491,6 +2652,8 @@ const G = {
     p.ok += s.curOk;
     p.bad += s.curBad;
     p.skip += s.curSkip;
+    // SFX
+    if (s.curOk > s.curBad) SFX.play('correct'); else SFX.play('wrong');
 
     // Show timeup screen
     document.getElementById('duel-winner-box').style.display = 'none';
@@ -2740,6 +2903,8 @@ const G = {
   goSplash() {
     if (!AUTH.user) { G.go('pg-login'); return; }
     document.getElementById('splash-greeting').textContent = `مرحباً ${AUTH.user.full} 👋`;
+      const _xp = STATS.data.xp; const _lv = getLevel(_xp);
+      document.getElementById('splash-level').innerHTML = '<span class="level-badge">' + _lv.icon + ' ' + _lv.label + ' · ' + _xp + ' XP</span>';
     document.getElementById('lobby-user-name').textContent = AUTH.user.full;
     G.go('pg-splash');
   },
@@ -2818,7 +2983,16 @@ const G = {
           // Update player count in Firebase
           if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
         });
-        conn.on('data', msg => handleMsg(msg, conn));
+        conn.on('data', msg => {
+          if (msg.type === 'spectate_req') {
+            // Accept spectator silently
+            conn.send({ type: 'spectate_ok' });
+            PEER_STATE._spectators = PEER_STATE._spectators || [];
+            PEER_STATE._spectators.push(conn);
+            return;
+          }
+          handleMsg(msg, conn);
+        });
         conn.on('close', () => {
           PEER_STATE.conns = PEER_STATE.conns.filter(c => c !== conn);
           PEER_STATE.players = PEER_STATE.players.filter(p => p.conn !== conn);
@@ -2828,7 +3002,14 @@ const G = {
         });
       });
     } catch(e) {
-      document.getElementById('rh-room-code').textContent = '⚠️ خطأ في إنشاء الغرفة';
+      console.error('Room creation error:', e);
+      // Show error but still show room if peer connected
+      if (PEER_STATE.roomCode) {
+        document.getElementById('rh-room-code').innerHTML = 
+          'كود الغرفة: <strong style="color:var(--gold)">' + PEER_STATE.roomCode + '</strong>';
+      } else {
+        document.getElementById('rh-room-code').textContent = '⚠️ خطأ في إنشاء الغرفة: ' + e.message;
+      }
     }
   },
   browseRooms() {
@@ -2880,16 +3061,20 @@ const G = {
       return;
     }
     list.innerHTML = rooms.map(r => `
-      <div class="room-card" onclick="G.joinRoom('${r.id}','${r.name}','${r.hostName||''}')">
-        <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="room-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <div class="room-card-name">${r.name || 'غرفة بدون اسم'}</div>
           <div class="room-card-badge">🟢 مفتوحة</div>
         </div>
-        <div class="room-card-meta">
+        <div class="room-card-meta" style="margin-bottom:10px">
           <span>👑 ${r.hostName || 'مجهول'}</span>
           <span>👥 ${r.players || 1} لاعب</span>
           <span>⏱️ ${r.timePerQ || 30}ث</span>
           <span>🎯 ${r.diff === 'easy' ? 'سهل' : r.diff === 'hard' ? 'صعب' : 'متوسط'}</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="G.joinRoom('${r.id}','${r.name}','${r.hostName||''}')" style="flex:2;background:var(--fire);border:none;border-radius:10px;padding:8px;color:#fff;font-weight:900;cursor:pointer;font-family:Cairo,sans-serif">🎮 انضمام</button>
+          <button onclick="G.spectateRoom('${r.id}','${r.name}')" style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px;color:var(--blue);font-weight:900;cursor:pointer;font-family:Cairo,sans-serif">👁️ مشاهدة</button>
         </div>
       </div>`).join('');
   },
@@ -3147,6 +3332,14 @@ const G = {
     document.getElementById('rep-back-btn').textContent = (PEER_STATE.peer && !PEER_STATE.peer.destroyed) ? '↩ العودة للغرفة' : '↩ لعبة جديدة';
     G.go('pg-report');
     G.confetti();
+    SFX.play('win');
+    // Save stats for local player
+    const myName = AUTH.user?.full || AUTH.user?.fname;
+    const me = sorted.find(p => p.name === myName);
+    const isWinner = sorted[0]?.name === myName;
+    if (me) {
+      STATS.addGame(isWinner, me.ok || 0, me.pts || 0, me.ok || 0);
+    }
     // Save winner score to leaderboard
     if (sorted.length > 0) {
       const winner = sorted[0];
@@ -3875,6 +4068,61 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
 .lb-name { flex: 1; font-weight: 900; }
 .lb-score { color: var(--gold); font-weight: 900; font-size: 1.1rem; }
 
+
+/* ── THEMES ── */
+body.theme-gold {
+  --fire: #d4a017; --fire2: #f0c040; --gold: #ffe066;
+  --dark: #1a1200; --card: #1f1800; --card2: #2a2200;
+  --border: #3a3000;
+}
+body.theme-ocean {
+  --fire: #00b4d8; --fire2: #0077b6; --gold: #90e0ef;
+  --dark: #03045e; --card: #023e8a; --card2: #0a1628;
+  --border: #0a3870;
+}
+body.theme-light {
+  --fire: #ff4500; --fire2: #ff8c00; --gold: #cc8800;
+  --dark: #f5f5f5; --card: #ffffff; --card2: #f0f0f0;
+  --border: #dddddd; --text: #111111; --muted: #888888;
+}
+body.theme-purple {
+  --fire: #b44fdc; --fire2: #7c3aed; --gold: #e879f9;
+  --dark: #0d0618; --card: #160d27; --card2: #1e1035;
+  --border: #2d1a4a;
+}
+
+/* ── THEME PICKER ── */
+.theme-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 16px; }
+.theme-dot {
+  width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: transform .2s;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+}
+.theme-dot:hover { transform: scale(1.15); }
+.theme-dot.active { border-color: #fff; }
+
+/* ── LEVEL BADGE ── */
+.level-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,215,0,.12); border: 1px solid rgba(255,215,0,.3);
+  border-radius: 20px; padding: 4px 12px; font-size: .72rem; font-weight: 900; color: var(--gold);
+}
+.xp-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 4px; overflow: hidden; }
+.xp-bar-fill { height: 100%; background: linear-gradient(90deg,var(--fire),var(--gold)); border-radius: 4px; transition: width .6s ease; }
+
+/* ── STATS CARD ── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; text-align: center; }
+.stat-val { font-size: 1.6rem; font-weight: 900; color: var(--gold); }
+.stat-lbl { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+
+/* ── SPECTATOR ── */
+.spec-badge { background: rgba(64,196,255,.15); color: var(--blue); border: 1px solid rgba(64,196,255,.3); border-radius: 10px; padding: 2px 10px; font-size: .7rem; font-weight: 900; }
+
+/* ── SOUND TOGGLE ── */
+.sound-btn { background: none; border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px; color: var(--muted); cursor: pointer; font-size: .8rem; transition: all .2s; }
+.sound-btn.active { border-color: var(--fire); color: var(--fire); }
+
 </style>
 
 <script>
@@ -4476,27 +4724,312 @@ function installApp(){
   });
 }
 
+
+// ════════════════════════════════════════════════════════
+//  LEVELS SYSTEM
+// ════════════════════════════════════════════════════════
+const LEVELS = [
+  { min:0,     label:'مبتدئ',    icon:'🌱', next:100  },
+  { min:100,   label:'متعلم',    icon:'📚', next:300  },
+  { min:300,   label:'محترف',    icon:'⚡', next:700  },
+  { min:700,   label:'خبير',     icon:'🔥', next:1500 },
+  { min:1500,  label:'أسطورة',   icon:'👑', next:3000 },
+  { min:3000,  label:'إله',      icon:'💎', next:9999 },
+];
+
+function getLevel(xp) {
+  let lv = LEVELS[0];
+  for (const l of LEVELS) { if (xp >= l.min) lv = l; else break; }
+  return lv;
+}
+
+// ════════════════════════════════════════════════════════
+//  STATS SYSTEM
+// ════════════════════════════════════════════════════════
+const STATS = {
+  data: { wins:0, games:0, correct:0, streak:0, bestStreak:0, totalPts:0, xp:0 },
+  load() {
+    const s = localStorage.getItem('sc_stats');
+    if (s) STATS.data = { ...STATS.data, ...JSON.parse(s) };
+  },
+  save() { localStorage.setItem('sc_stats', JSON.stringify(STATS.data)); },
+  addGame(won, correct, pts, streak) {
+    STATS.data.games++;
+    if (won) STATS.data.wins++;
+    STATS.data.correct += (correct || 0);
+    STATS.data.totalPts += (pts || 0);
+    STATS.data.bestStreak = Math.max(STATS.data.bestStreak, streak || 0);
+    // XP: 10 per correct, 50 bonus for win
+    STATS.data.xp += (correct || 0) * 10 + (won ? 50 : 0);
+    STATS.save();
+  }
+};
+
+// ════════════════════════════════════════════════════════
+//  SOUND SYSTEM
+// ════════════════════════════════════════════════════════
+const SFX = {
+  enabled: true,
+  bgmEnabled: false,
+  ctx: null,
+  bgmNode: null,
+
+  init() {
+    SFX.enabled  = localStorage.getItem('sc_sfx')  !== 'off';
+    SFX.bgmEnabled = localStorage.getItem('sc_bgm') === 'on';
+  },
+
+  getCtx() {
+    if (!SFX.ctx) SFX.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return SFX.ctx;
+  },
+
+  play(type) {
+    if (!SFX.enabled) return;
+    try {
+      const ctx = SFX.getCtx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      const configs = {
+        correct: { freq:[523,659,784], dur:.12, vol:.18, wave:'sine' },
+        wrong:   { freq:[200,150],     dur:.15, vol:.15, wave:'sawtooth' },
+        tick:    { freq:[800],         dur:.04, vol:.08, wave:'square' },
+        win:     { freq:[523,659,784,1047], dur:.1, vol:.2, wave:'sine' },
+        click:   { freq:[440],         dur:.05, vol:.06, wave:'sine' },
+      };
+      const c = configs[type] || configs.click;
+      o.type = c.wave;
+      g.gain.setValueAtTime(c.vol, ctx.currentTime);
+      c.freq.forEach((f, i) => {
+        o.frequency.setValueAtTime(f, ctx.currentTime + i * c.dur);
+      });
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + c.freq.length * c.dur + .05);
+      o.start(ctx.currentTime);
+      o.stop(ctx.currentTime + c.freq.length * c.dur + .1);
+    } catch(e) {}
+  },
+
+  startBgm() {
+    if (!SFX.bgmEnabled || SFX.bgmNode) return;
+    try {
+      const ctx = SFX.getCtx();
+      // Simple ambient drone
+      const notes = [130.81, 146.83, 164.81, 174.61];
+      SFX.bgmNode = ctx.createGain();
+      SFX.bgmNode.gain.value = 0.04;
+      SFX.bgmNode.connect(ctx.destination);
+      notes.forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = freq;
+        o.connect(SFX.bgmNode);
+        o.start(ctx.currentTime + i * 0.5);
+      });
+    } catch(e) {}
+  },
+
+  stopBgm() {
+    if (SFX.bgmNode) { try { SFX.bgmNode.disconnect(); } catch(e) {} SFX.bgmNode = null; }
+  }
+};
+
+// ════════════════════════════════════════════════════════
+//  THEME SYSTEM
+// ════════════════════════════════════════════════════════
+const THEME = {
+  current: 'dark',
+  load() {
+    const t = localStorage.getItem('sc_theme') || 'dark';
+    THEME.apply(t);
+  },
+  apply(name) {
+    document.body.className = document.body.className
+      .replace(/theme-\S+/g, '').trim();
+    if (name !== 'dark') document.body.classList.add('theme-' + name);
+    THEME.current = name;
+    localStorage.setItem('sc_theme', name);
+    // Update dots
+    document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+    const dot = document.getElementById('th-' + name);
+    if (dot) dot.classList.add('active');
+  }
+};
+
+// ════════════════════════════════════════════════════════
+//  SPECTATOR SYSTEM
+// ════════════════════════════════════════════════════════
+const SPECTATOR = { peer: null, conn: null, roomId: null };
+
+// ════════════════════════════════════════════════════════
+//  G extensions
+// ════════════════════════════════════════════════════════
+Object.assign(G, {
+
+  // ── Profile ──
+  showProfile() {
+    const u = AUTH.user;
+    if (!u) return G.go('pg-login');
+    document.getElementById('prof-av').textContent   = u.av || '🔥';
+    document.getElementById('prof-name').textContent = u.full || u.fname;
+    const xp  = STATS.data.xp;
+    const lv  = getLevel(xp);
+    const pct = Math.min(100, Math.round((xp - lv.min) / (lv.next - lv.min) * 100));
+    document.getElementById('prof-level-badge').textContent = lv.icon + ' ' + lv.label + ' · ' + xp + ' XP';
+    document.getElementById('prof-xp-text').textContent     = xp + ' / ' + lv.next + ' XP';
+    document.getElementById('prof-xp-bar').style.width      = pct + '%';
+    document.getElementById('st-wins').textContent    = STATS.data.wins;
+    document.getElementById('st-games').textContent   = STATS.data.games;
+    document.getElementById('st-correct').textContent = STATS.data.correct;
+    document.getElementById('st-streak').textContent  = STATS.data.bestStreak;
+    document.getElementById('st-pts').textContent     = STATS.data.totalPts;
+    const wr = STATS.data.games ? Math.round(STATS.data.wins/STATS.data.games*100) : 0;
+    document.getElementById('st-winrate').textContent = wr + '%';
+    document.getElementById('sfx-btn').className = 'sound-btn' + (SFX.enabled ? ' active' : '');
+    document.getElementById('bgm-btn').className = 'sound-btn' + (SFX.bgmEnabled ? ' active' : '');
+    G.go('pg-profile');
+  },
+
+  // ── Theme ──
+  setTheme(name) { SFX.play('click'); THEME.apply(name); },
+
+  // ── Sound toggles ──
+  toggleSfx() {
+    SFX.enabled = !SFX.enabled;
+    localStorage.setItem('sc_sfx', SFX.enabled ? 'on' : 'off');
+    document.getElementById('sfx-btn').className = 'sound-btn' + (SFX.enabled ? ' active' : '');
+    SFX.play('click');
+  },
+  toggleBgm() {
+    SFX.bgmEnabled = !SFX.bgmEnabled;
+    localStorage.setItem('sc_bgm', SFX.bgmEnabled ? 'on' : 'off');
+    document.getElementById('bgm-btn').className = 'sound-btn' + (SFX.bgmEnabled ? ' active' : '');
+    if (SFX.bgmEnabled) SFX.startBgm(); else SFX.stopBgm();
+  },
+
+  // ── Spectate ──
+  async spectateRoom(roomId, roomName) {
+    G.go('pg-spectate');
+    document.getElementById('spec-room-name').textContent = '👁️ ' + roomName;
+    document.getElementById('spec-status').innerHTML = '<div style="font-size:2rem;margin-bottom:8px">⏳</div><div style="font-weight:900;color:var(--muted)">جارٍ الاتصال...</div>';
+    try {
+      if (SPECTATOR.peer) { try { SPECTATOR.peer.destroy(); } catch(e){} }
+      SPECTATOR.roomId = roomId;
+      const peer = new Peer(undefined, { host:'0.peerjs.com', port:443, path:'/', secure:true });
+      SPECTATOR.peer = peer;
+      peer.on('open', () => {
+        const conn = peer.connect(roomId, { reliable: true });
+        SPECTATOR.conn = conn;
+        conn.on('open', () => {
+          conn.send({ type:'spectate_req', name: AUTH.user?.full || 'مشاهد' });
+          document.getElementById('spec-status').innerHTML = '<div style="font-size:2rem;margin-bottom:8px">👁️</div><div style="font-weight:900;color:var(--green)">متصل — في انتظار بدء اللعبة</div>';
+        });
+        conn.on('data', msg => G.handleSpectatorMsg(msg));
+        conn.on('close', () => {
+          document.getElementById('spec-status').innerHTML = '<div style="font-size:2rem">❌</div><div style="color:var(--muted)">انقطع الاتصال</div>';
+        });
+      });
+      peer.on('error', () => {
+        document.getElementById('spec-status').innerHTML = '<div style="font-size:2rem">❌</div><div style="color:var(--muted)">فشل الاتصال بالغرفة</div>';
+      });
+    } catch(e) {
+      document.getElementById('spec-status').innerHTML = '<div style="color:var(--red)">⚠️ خطأ في الاتصال</div>';
+    }
+  },
+
+  handleSpectatorMsg(msg) {
+    if (msg.type === 'chat_broadcast') {
+      const chat = document.getElementById('spec-chat');
+      if (chat) {
+        chat.innerHTML += `<div class="chat-msg"><span class="chat-from">${msg.from}</span> ${msg.text}</div>`;
+        chat.scrollTop = chat.scrollHeight;
+      }
+    }
+    if (msg.type === 'game_start') {
+      document.getElementById('spec-status').style.display = 'none';
+      document.getElementById('spec-question-box').style.display = 'block';
+      G.updateSpecScores(msg.players || []);
+    }
+    if (msg.type === 'question') {
+      const qb = document.getElementById('spec-question-box');
+      qb.style.display = 'block';
+      document.getElementById('spec-q-meta').textContent = msg.cat || '';
+      document.getElementById('spec-q-text').textContent = msg.q || '';
+      const opts = document.getElementById('spec-options');
+      if (msg.options) {
+        opts.innerHTML = msg.options.map(o =>
+          `<div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:.88rem">${o}</div>`
+        ).join('');
+      }
+    }
+    if (msg.type === 'scores_update') G.updateSpecScores(msg.players || []);
+  },
+
+  updateSpecScores(players) {
+    const el = document.getElementById('spec-scores');
+    if (!el) return;
+    const sorted = [...players].sort((a,b) => b.pts - a.pts);
+    el.innerHTML = sorted.map((p,i) =>
+      `<div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px">
+        <span>${['🥇','🥈','🥉'][i]||'·'}</span>
+        <span>${p.av||'👤'}</span>
+        <span style="flex:1;font-weight:900">${p.name}</span>
+        <span style="color:var(--gold);font-weight:900">${p.pts}</span>
+      </div>`
+    ).join('');
+  },
+
+  leaveSpectate() {
+    if (SPECTATOR.conn) { try { SPECTATOR.conn.close(); } catch(e){} }
+    if (SPECTATOR.peer) { try { SPECTATOR.peer.destroy(); } catch(e){} }
+    SPECTATOR.conn = null; SPECTATOR.peer = null;
+    G.go('pg-browse-rooms');
+  },
+
+});
+
+// ════════════════════════════════════════════════════════
+//  Hook SFX into game events
+// ════════════════════════════════════════════════════════
+(function hookSfx() {
+  const origStartTimer = G.startTimer?.bind(G);
+  if (origStartTimer) {
+    G.startTimer = function(sec) {
+      origStartTimer(sec);
+      // We'll intercept timer ticks via MutationObserver
+      const numEl = document.getElementById('timer-num');
+      if (numEl) {
+        const obs = new MutationObserver(() => {
+          const v = parseInt(numEl.textContent);
+          if (v <= 5 && v > 0) SFX.play('tick');
+        });
+        obs.observe(numEl, { childList: true, characterData: true, subtree: true });
+        // Store observer to disconnect later
+        G._timerObs = obs;
+      }
+    };
+  }
+})();
+
+// ════════════════════════════════════════════════════════
+//  Init on load
+// ════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  STATS.load();
+  THEME.load();
+  SFX.init();
+  if (SFX.bgmEnabled) SFX.startBgm();
+});
+
+// Hook correct/wrong answer sounds
+const _origNextQ = G.nextQuestion?.bind(G);
+
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
     .then(()=>console.log("Seat Clash ready"));
 }
 
-// ═══ Firebase Init ═══
-const firebaseConfig = {
-  apiKey: "AIzaSyCiIMxrbN9z9a54f6j7mckuDi7o53ygMko",
-  authDomain: "abde-a49ec.firebaseapp.com",
-  projectId: "abde-a49ec",
-  storageBucket: "abde-a49ec.firebasestorage.app",
-  messagingSenderId: "1069572535490",
-  appId: "1:1069572535490:web:193fb083e47b388287f75b"
-};
-try {
-  firebase.initializeApp(firebaseConfig);
-  window.DB = firebase.firestore();
-  console.log("🔥 Firebase connected");
-} catch(e) {
-  console.warn("Firebase init failed", e);
-}
+// Firebase initialized in <head>
 </script>
 
 </body>
