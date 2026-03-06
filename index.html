@@ -13,6 +13,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --fire: #ff4500;
@@ -777,6 +779,69 @@ body::before {
 
 .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 
+
+/* ── EMOJI CHAT ── */
+.emoji-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.emoji-btn {
+  font-size: 1.4rem;
+  background: var(--card2);
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.emoji-btn:active { transform: scale(1.3); }
+.emoji-float {
+  position: fixed;
+  font-size: 2rem;
+  z-index: 9999;
+  pointer-events: none;
+  animation: floatUp 1.5s ease forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
+}
+
+/* ── ROOM CARD ── */
+.room-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+}
+.room-card:hover { border-color: var(--fire); transform: translateY(-2px); }
+.room-card-name { font-size: 1rem; font-weight: 900; color: var(--gold); margin-bottom: 4px; }
+.room-card-meta { font-size: .72rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.room-card-badge { background: rgba(255,69,0,.15); color: var(--fire); padding: 2px 8px; border-radius: 10px; font-size: .68rem; font-weight: 900; }
+
+/* ── LEADERBOARD ── */
+.lb-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.lb-rank { font-size: 1.3rem; min-width: 30px; text-align: center; }
+.lb-name { flex: 1; font-weight: 900; }
+.lb-score { color: var(--gold); font-weight: 900; font-size: 1.1rem; }
+
 </style>
 </head>
 <body>
@@ -895,10 +960,14 @@ body::before {
     <div class="opt-card chosen" id="rm-diff-mixed" onclick="G.setRoomDiff('mixed')"><span class="oc-icon">🎲</span><div class="oc-label">مختلط</div></div>
   </div>
   <div class="section-label">⏱️ وقت السؤال</div>
-  <div class="option-grid col4">
-    <div class="opt-card" id="rm-time-20" onclick="G.setRoomTime(20)"><span class="oc-icon">⚡</span><div class="oc-label">20ث</div></div>
-    <div class="opt-card chosen" id="rm-time-30" onclick="G.setRoomTime(30)"><span class="oc-icon">🔥</span><div class="oc-label">30ث</div></div>
-    <div class="opt-card" id="rm-time-60" onclick="G.setRoomTime(60)"><span class="oc-icon">⏱️</span><div class="oc-label">60ث</div></div>
+  <div class="option-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="opt-card" id="rm-time-5" onclick="G.setRoomTime(5)"><span class="oc-icon">🚀</span><div class="oc-label">5ث</div></div>
+    <div class="opt-card" id="rm-time-10" onclick="G.setRoomTime(10)"><span class="oc-icon">⚡</span><div class="oc-label">10ث</div></div>
+    <div class="opt-card" id="rm-time-20" onclick="G.setRoomTime(20)"><span class="oc-icon">🔥</span><div class="oc-label">20ث</div></div>
+  </div>
+  <div class="option-grid" style="grid-template-columns:repeat(3,1fr);margin-top:8px">
+    <div class="opt-card chosen" id="rm-time-30" onclick="G.setRoomTime(30)"><span class="oc-icon">⏱️</span><div class="oc-label">30ث</div></div>
+    <div class="opt-card" id="rm-time-60" onclick="G.setRoomTime(60)"><span class="oc-icon">⏳</span><div class="oc-label">60ث</div></div>
     <div class="opt-card" id="rm-time-90" onclick="G.setRoomTime(90)"><span class="oc-icon">💪</span><div class="oc-label">90ث</div></div>
   </div>
   <button class="btn-fire" style="margin-top:20px" onclick="G.confirmCreateRoom()">🏠 إنشاء الغرفة</button>
@@ -909,11 +978,46 @@ body::before {
 <div id="pg-browse-rooms" class="page">
 <div class="wrap">
   <button class="btn-back" onclick="G.go('pg-lobby')" style="margin-top:16px">← رجوع</button>
-  <div class="page-header"><h2>🔍 الغرف المتاحة</h2><p>اختر غرفة للانضمام</p></div>
-  <div id="rooms-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-    <div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem">🔄 جارٍ البحث...</div>
+  <div class="page-header"><h2>🌍 الغرف العالمية</h2><p>انضم لأي غرفة في العالم</p></div>
+
+  <!-- Search + Code -->
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <input id="room-search-input" class="adm-input" style="flex:1" placeholder="🔍 ابحث باسم الغرفة..." oninput="G.filterRooms()">
+    <button onclick="G.showJoinCode()" style="background:var(--card);border:2px solid var(--border);border-radius:12px;padding:0 14px;color:var(--gold);cursor:pointer;font-size:1.1rem;white-space:nowrap">🔑 كود</button>
   </div>
-  <button class="btn-ghost" onclick="G.browseRooms()">🔄 تحديث</button>
+
+  <!-- Join by Code Modal -->
+  <div id="join-code-modal" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px">
+    <div style="font-weight:900;margin-bottom:10px;color:var(--gold)">🔑 أدخل كود الغرفة</div>
+    <input id="room-code-input" class="adm-input" placeholder="مثال: HC_ABC123" style="text-align:center;letter-spacing:3px;font-size:1.1rem;margin-bottom:10px" maxlength="20">
+    <div style="display:flex;gap:8px">
+      <button class="btn-fire" onclick="G.joinByCode()" style="flex:2">🔗 انضمام</button>
+      <button class="btn-ghost" onclick="document.getElementById('join-code-modal').style.display='none'" style="flex:1">إلغاء</button>
+    </div>
+    <div id="join-err" style="color:var(--red);font-size:.75rem;margin-top:8px;display:none"></div>
+  </div>
+
+  <!-- Rooms Stats -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div id="rooms-count" style="font-size:.75rem;color:var(--muted)">🔄 جارٍ التحميل...</div>
+    <button onclick="G.loadGlobalRooms()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:.75rem">🔄 تحديث</button>
+  </div>
+
+  <!-- Rooms List -->
+  <div id="rooms-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+    <div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem">🔄 جارٍ البحث عن الغرف...</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ LEADERBOARD ═══════════════ -->
+<div id="pg-leaderboard" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-splash')" style="margin-top:16px">← رجوع</button>
+  <div class="page-header"><h2>🏆 لوحة المتصدرين</h2><p>أفضل اللاعبين عالمياً</p></div>
+  <div id="lb-list" style="display:flex;flex-direction:column;gap:10px">
+    <div style="text-align:center;padding:40px;color:var(--muted)">🔄 جارٍ التحميل...</div>
+  </div>
 </div>
 </div>
 
@@ -934,6 +1038,10 @@ body::before {
     <div id="rh-requests"></div>
   </div>
   <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:6px">💬 الدردشة</div>
+  <div style="font-size:.7rem;color:var(--muted);font-weight:900;margin-bottom:4px">😄 تفاعل سريع</div>
+  <div class="emoji-bar">
+    <button class="emoji-btn" onclick="G.sendEmoji('😂','host')">😂</button><button class="emoji-btn" onclick="G.sendEmoji('🔥','host')">🔥</button><button class="emoji-btn" onclick="G.sendEmoji('👏','host')">👏</button><button class="emoji-btn" onclick="G.sendEmoji('😮','host')">😮</button><button class="emoji-btn" onclick="G.sendEmoji('💀','host')">💀</button><button class="emoji-btn" onclick="G.sendEmoji('🎉','host')">🎉</button><button class="emoji-btn" onclick="G.sendEmoji('👑','host')">👑</button><button class="emoji-btn" onclick="G.sendEmoji('😤','host')">😤</button>
+  </div>
   <div id="rh-chat" class="chat-box"></div>
   <div style="display:flex;gap:8px;margin:8px 0 14px">
     <input id="rh-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('host')">
@@ -960,6 +1068,10 @@ body::before {
   <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:8px">👥 اللاعبون</div>
   <div id="rg-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
   <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:6px">💬 الدردشة</div>
+  <div style="font-size:.7rem;color:var(--muted);font-weight:900;margin-bottom:4px">😄 تفاعل سريع</div>
+  <div class="emoji-bar">
+    <button class="emoji-btn" onclick="G.sendEmoji('😂','guest')">😂</button><button class="emoji-btn" onclick="G.sendEmoji('🔥','guest')">🔥</button><button class="emoji-btn" onclick="G.sendEmoji('👏','guest')">👏</button><button class="emoji-btn" onclick="G.sendEmoji('😮','guest')">😮</button><button class="emoji-btn" onclick="G.sendEmoji('💀','guest')">💀</button><button class="emoji-btn" onclick="G.sendEmoji('🎉','guest')">🎉</button><button class="emoji-btn" onclick="G.sendEmoji('👑','guest')">👑</button><button class="emoji-btn" onclick="G.sendEmoji('😤','guest')">😤</button>
+  </div>
   <div id="rg-chat" class="chat-box"></div>
   <div style="display:flex;gap:8px;margin:8px 0 14px">
     <input id="rg-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('guest')">
@@ -1047,23 +1159,15 @@ body::before {
   <div class="cats-grid" id="cats-grid"></div>
 
   <div class="section-label">⏱️ الوقت للسؤال</div>
-  <div class="option-grid col4">
-    <div class="opt-card" id="time-20" onclick="G.setTime(20)">
-      <span class="oc-icon">⚡</span>
-      <div class="oc-label">20 ث</div>
-    </div>
-    <div class="opt-card chosen" id="time-30" onclick="G.setTime(30)">
-      <span class="oc-icon">🔥</span>
-      <div class="oc-label">30 ث</div>
-    </div>
-    <div class="opt-card" id="time-60" onclick="G.setTime(60)">
-      <span class="oc-icon">⏱️</span>
-      <div class="oc-label">60 ث</div>
-    </div>
-    <div class="opt-card" id="time-90" onclick="G.setTime(90)">
-      <span class="oc-icon">💪</span>
-      <div class="oc-label">90 ث</div>
-    </div>
+  <div class="option-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="opt-card" id="time-5" onclick="G.setTime(5)"><span class="oc-icon">🚀</span><div class="oc-label">5 ث</div></div>
+    <div class="opt-card" id="time-10" onclick="G.setTime(10)"><span class="oc-icon">⚡</span><div class="oc-label">10 ث</div></div>
+    <div class="opt-card" id="time-20" onclick="G.setTime(20)"><span class="oc-icon">🔥</span><div class="oc-label">20 ث</div></div>
+  </div>
+  <div class="option-grid" style="grid-template-columns:repeat(3,1fr);margin-top:8px">
+    <div class="opt-card chosen" id="time-30" onclick="G.setTime(30)"><span class="oc-icon">⏱️</span><div class="oc-label">30 ث</div></div>
+    <div class="opt-card" id="time-60" onclick="G.setTime(60)"><span class="oc-icon">⏳</span><div class="oc-label">60 ث</div></div>
+    <div class="opt-card" id="time-90" onclick="G.setTime(90)"><span class="oc-icon">💪</span><div class="oc-label">90 ث</div></div>
   </div>
 
   <div class="section-label">✨ مميزات إضافية</div>
@@ -2677,7 +2781,6 @@ const G = {
   async confirmCreateRoom() {
     const name = document.getElementById('room-name-input').value.trim() || (AUTH.user ? 'غرفة ' + AUTH.user.fname : 'غرفة جديدة');
     ROOM.name = name; ROOM.isHost = true;
-    // تهيئة PeerJS كمضيف
     PEER_STATE.isHost = true;
     PEER_STATE.players = [{ name: AUTH.user?.full || 'المضيف', av: '🔥', isHost: true, accepted: true, ready: false, pts:0, ok:0, bad:0, skip:0 }];
     PEER_STATE.chat = [];
@@ -2689,12 +2792,30 @@ const G = {
       const peerId = await initPeer();
       PEER_STATE.roomCode = peerId;
       ROOM.roomId = peerId;
-      document.getElementById('rh-room-code').textContent = 'كود الغرفة: ' + peerId;
+      const codeEl = document.getElementById('rh-room-code');
+      codeEl.innerHTML = `كود الغرفة: <strong style="color:var(--gold);letter-spacing:2px">${peerId}</strong> <button onclick="navigator.clipboard.writeText('${peerId}').then(()=>{this.textContent='✅';setTimeout(()=>this.textContent='📋',1500)})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;color:var(--muted);cursor:pointer;font-size:.7rem">📋</button>`;
+      // Register in Firebase
+      if (window.DB) {
+        window._roomDocRef = window.DB.collection('rooms').doc(peerId);
+        await window._roomDocRef.set({
+          name,
+          hostName: AUTH.user?.full || 'مجهول',
+          open: true,
+          players: 1,
+          diff: ROOM.diff || 'mixed',
+          timePerQ: ROOM.timePerQ || 30,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        // Auto-delete after 2 hours
+        setTimeout(() => window._roomDocRef?.delete(), 7200000);
+      }
       // استقبال اتصالات الضيوف
       PEER_STATE.peer.on('connection', conn => {
         conn.on('open', () => {
           PEER_STATE.conns.push(conn);
           document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+          // Update player count in Firebase
+          if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
         });
         conn.on('data', msg => handleMsg(msg, conn));
         conn.on('close', () => {
@@ -2702,6 +2823,7 @@ const G = {
           PEER_STATE.players = PEER_STATE.players.filter(p => p.conn !== conn);
           G.renderHostPlayers();
           document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+          if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
         });
       });
     } catch(e) {
@@ -2710,21 +2832,72 @@ const G = {
   },
   browseRooms() {
     G.go('pg-browse-rooms');
-    document.getElementById('rooms-list').innerHTML = `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center">
-        <div style="font-size:2rem;margin-bottom:10px">🔑</div>
-        <div style="font-weight:900;margin-bottom:6px">أدخل كود الغرفة</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-bottom:14px">اطلب الكود من المضيف</div>
-        <input id="room-code-input" class="adm-input" placeholder="مثال: HC_ABC123" style="text-align:center;letter-spacing:3px;font-size:1.1rem;margin-bottom:12px" maxlength="20">
-        <button class="btn-fire" onclick="G.joinByCode()">🔗 انضمام</button>
-        <div id="join-err" style="color:var(--red);font-size:.75rem;margin-top:8px;display:none"></div>
-      </div>`;
+    G.loadGlobalRooms();
+  },
+
+  showJoinCode() {
+    const m = document.getElementById('join-code-modal');
+    m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  },
+
+  _allRooms: [],
+
+  async loadGlobalRooms() {
+    const list = document.getElementById('rooms-list');
+    const cnt  = document.getElementById('rooms-count');
+    if (!list) return;
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">🔄 جارٍ البحث...</div>';
+    try {
+      const snap = await window.DB.collection('rooms')
+        .where('open', '==', true)
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      G._allRooms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Remove stale rooms (older than 2h)
+      const now = Date.now();
+      G._allRooms = G._allRooms.filter(r => now - (r.createdAt?.toMillis?.() || 0) < 7200000);
+      cnt.textContent = `${G._allRooms.length} غرفة متاحة 🌍`;
+      G.renderRooms(G._allRooms);
+    } catch(e) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ تعذر تحميل الغرف</div>';
+      cnt.textContent = '';
+    }
+  },
+
+  filterRooms() {
+    const q = (document.getElementById('room-search-input')?.value || '').toLowerCase();
+    const filtered = G._allRooms.filter(r => r.name?.toLowerCase().includes(q));
+    G.renderRooms(filtered);
+  },
+
+  renderRooms(rooms) {
+    const list = document.getElementById('rooms-list');
+    if (!list) return;
+    if (!rooms.length) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">😴 لا توجد غرف مفتوحة الآن</div>';
+      return;
+    }
+    list.innerHTML = rooms.map(r => `
+      <div class="room-card" onclick="G.joinRoom('${r.id}','${r.name}','${r.hostName||''}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="room-card-name">${r.name || 'غرفة بدون اسم'}</div>
+          <div class="room-card-badge">🟢 مفتوحة</div>
+        </div>
+        <div class="room-card-meta">
+          <span>👑 ${r.hostName || 'مجهول'}</span>
+          <span>👥 ${r.players || 1} لاعب</span>
+          <span>⏱️ ${r.timePerQ || 30}ث</span>
+          <span>🎯 ${r.diff === 'easy' ? 'سهل' : r.diff === 'hard' ? 'صعب' : 'متوسط'}</span>
+        </div>
+      </div>`).join('');
   },
 
   async joinByCode() {
-    const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+    const code = document.getElementById('room-code-input')?.value?.trim().toUpperCase();
     if (!code) return;
-    document.getElementById('join-err').style.display = 'none';
+    const errEl = document.getElementById('join-err');
+    if (errEl) errEl.style.display = 'none';
     G.joinRoom(code, 'غرفة ' + code, '');
   },
   async joinRoom(roomId, roomName, hostName) {
@@ -2771,6 +2944,7 @@ const G = {
     PEER_STATE.conns.forEach(c => c.close());
     if(PEER_STATE.peer) PEER_STATE.peer.destroy();
     PEER_STATE.peer = null; PEER_STATE.conns = [];
+    if(window._roomDocRef) { window._roomDocRef.update({ open: false }); window._roomDocRef = null; }
     G.go('pg-lobby');
   },
   startRoomPoll(role) {},  // لا يلزم مع P2P
@@ -2854,6 +3028,71 @@ const G = {
       PEER_STATE.conn.send(msg);
     }
   },
+
+  sendEmoji(emoji, role) {
+    const from = AUTH.user?.full || 'لاعب';
+    // Show floating emoji locally
+    G.floatEmoji(emoji);
+    // Send to others
+    const msg = { type:'chat', from, text: emoji };
+    PEER_STATE.chat.push({ from, text: emoji });
+    G.renderChat(role);
+    if(PEER_STATE.isHost) {
+      broadcast({ type:'chat_broadcast', from, text: emoji });
+    } else if(PEER_STATE.conn?.open) {
+      PEER_STATE.conn.send(msg);
+    }
+  },
+
+  floatEmoji(emoji) {
+    const el = document.createElement('div');
+    el.className = 'emoji-float';
+    el.textContent = emoji;
+    el.style.left = (30 + Math.random() * 40) + '%';
+    el.style.bottom = '80px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+  },
+
+  async showLeaderboard() {
+    G.go('pg-leaderboard');
+    const list = document.getElementById('lb-list');
+    if (!list) return;
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">🔄 جارٍ التحميل...</div>';
+    try {
+      const snap = await window.DB.collection('leaderboard')
+        .orderBy('score', 'desc')
+        .limit(20)
+        .get();
+      if (snap.empty) {
+        list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">😴 لا يوجد بيانات بعد</div>';
+        return;
+      }
+      const medals = ['🥇','🥈','🥉'];
+      list.innerHTML = snap.docs.map((d, i) => {
+        const r = d.data();
+        return `<div class="lb-item">
+          <div class="lb-rank">${medals[i] || '#'+(i+1)}</div>
+          <div style="font-size:1.3rem">${r.av || '👤'}</div>
+          <div class="lb-name">${r.name || 'مجهول'}</div>
+          <div class="lb-score">${r.score} <span style="font-size:.7rem;color:var(--muted)">نقطة</span></div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ تعذر التحميل</div>';
+    }
+  },
+
+  async saveScoreToLeaderboard(name, av, score) {
+    if (!window.DB || score <= 0) return;
+    try {
+      const ref = window.DB.collection('leaderboard').doc(name);
+      const doc = await ref.get();
+      if (!doc.exists || doc.data().score < score) {
+        await ref.set({ name, av, score, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      }
+    } catch(e) {}
+  },
   hostStartGame() {
     const accepted = PEER_STATE.players.filter(p=>p.accepted||p.isHost);
     if(accepted.length < 2){ alert('تحتاج لاعبَين على الأقل مقبولَين!'); return; }
@@ -2907,6 +3146,11 @@ const G = {
     document.getElementById('rep-back-btn').textContent = (PEER_STATE.peer && !PEER_STATE.peer.destroyed) ? '↩ العودة للغرفة' : '↩ لعبة جديدة';
     G.go('pg-report');
     G.confetti();
+    // Save winner score to leaderboard
+    if (sorted.length > 0) {
+      const winner = sorted[0];
+      G.saveScoreToLeaderboard(winner.name, winner.av || '👤', winner.pts);
+    }
   },
   afterReport() {
     if(PEER_STATE.peer){
@@ -3567,6 +3811,69 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
   .page { position: static !important; background: white !important; color: black !important; }
   body { background: white; color: black; }
 }
+
+/* ── EMOJI CHAT ── */
+.emoji-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.emoji-btn {
+  font-size: 1.4rem;
+  background: var(--card2);
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.emoji-btn:active { transform: scale(1.3); }
+.emoji-float {
+  position: fixed;
+  font-size: 2rem;
+  z-index: 9999;
+  pointer-events: none;
+  animation: floatUp 1.5s ease forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-120px) scale(1.5); }
+}
+
+/* ── ROOM CARD ── */
+.room-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+}
+.room-card:hover { border-color: var(--fire); transform: translateY(-2px); }
+.room-card-name { font-size: 1rem; font-weight: 900; color: var(--gold); margin-bottom: 4px; }
+.room-card-meta { font-size: .72rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.room-card-badge { background: rgba(255,69,0,.15); color: var(--fire); padding: 2px 8px; border-radius: 10px; font-size: .68rem; font-weight: 900; }
+
+/* ── LEADERBOARD ── */
+.lb-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.lb-rank { font-size: 1.3rem; min-width: 30px; text-align: center; }
+.lb-name { flex: 1; font-weight: 900; }
+.lb-score { color: var(--gold); font-weight: 900; font-size: 1.1rem; }
+
 </style>
 
 <script>
@@ -4171,6 +4478,23 @@ function installApp(){
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
     .then(()=>console.log("Seat Clash ready"));
+}
+
+// ═══ Firebase Init ═══
+const firebaseConfig = {
+  apiKey: "AIzaSyCiIMxrbN9z9a54f6j7mckuDi7o53ygMko",
+  authDomain: "abde-a49ec.firebaseapp.com",
+  projectId: "abde-a49ec",
+  storageBucket: "abde-a49ec.firebasestorage.app",
+  messagingSenderId: "1069572535490",
+  appId: "1:1069572535490:web:193fb083e47b388287f75b"
+};
+try {
+  firebase.initializeApp(firebaseConfig);
+  window.DB = firebase.firestore();
+  console.log("🔥 Firebase connected");
+} catch(e) {
+  console.warn("Firebase init failed", e);
 }
 </script>
 
