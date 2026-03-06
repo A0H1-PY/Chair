@@ -2570,7 +2570,11 @@ const G = {
       if (rem <= 0) { clearInterval(this._timer); this.onTimeout(); }
     }, 1000);
   },
-  stopTimer() { if (this._timer) clearInterval(this._timer); },
+  stopTimer() {
+    if (this._timer) clearInterval(this._timer);
+    // ✅ إصلاح: قطع مراقب المؤقت لمنع تسريب الذاكرة
+    if (G._timerObs) { try { G._timerObs.disconnect(); } catch(e){} G._timerObs = null; }
+  },
 
   onTimeout() {
     const s = this.s;
@@ -2987,7 +2991,8 @@ const G = {
       if (!doc.exists) { G._authErr('❌ اسم المستخدم غير موجود'); return; }
       const data = doc.data();
       // Simple hash check (md5-like using btoa)
-      const hashed = btoa(username + ':' + password);
+      // ⚠️ تنبيه: btoa ليست تشفيراً حقيقياً - يُنصح باستخدام Firebase Authentication
+    const hashed = btoa(username + ':' + password);
       if (data.pw !== hashed) { G._authErr('❌ كلمة المرور خاطئة'); return; }
       AUTH.save(data.username, data.fullname, data.av || '🔥', username);
       // Load this user's stats
@@ -3104,13 +3109,31 @@ const G = {
           timePerQ: ROOM.timePerQ || 30,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        // Auto-delete after 2 hours
-        setTimeout(() => window._roomDocRef?.delete(), 7200000);
+        // ✅ إصلاح: تحديث وقت النشاط كل 5 دقائق لإبقاء الغرفة نشطة
+        window._roomHeartbeat = setInterval(() => {
+          if (window._roomDocRef && PEER_STATE.isHost) {
+            window._roomDocRef.update({ lastActive: firebase.firestore.FieldValue.serverTimestamp() })
+              .catch(() => {});
+          } else {
+            clearInterval(window._roomHeartbeat);
+          }
+        }, 300000); // كل 5 دقائق
+        // حذف تلقائي بعد 3 ساعات
+        setTimeout(() => {
+          if (window._roomDocRef) {
+            window._roomDocRef.update({ open: false }).catch(()=>{});
+            window._roomDocRef = null;
+          }
+          clearInterval(window._roomHeartbeat);
+        }, 10800000);
       }
       // استقبال اتصالات الضيوف
       PEER_STATE.peer.on('connection', conn => {
         conn.on('open', () => {
-          PEER_STATE.conns.push(conn);
+          // ✅ إصلاح: منع إضافة نفس الاتصال مرتين
+          if (!PEER_STATE.conns.includes(conn)) {
+            PEER_STATE.conns.push(conn);
+          }
           document.getElementById('rh-count').textContent = PEER_STATE.players.length;
           // Update player count in Firebase
           if(window._roomDocRef) window._roomDocRef.update({ players: PEER_STATE.players.length });
@@ -3254,17 +3277,23 @@ const G = {
     }
   },
   leaveRoom() {
-    if(PEER_STATE.conn) PEER_STATE.conn.close();
-    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
-    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = [];
+    if(PEER_STATE.conn) { try { PEER_STATE.conn.close(); } catch(e){} }
+    if(PEER_STATE.peer) { try { PEER_STATE.peer.destroy(); } catch(e){} }
+    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = []; PEER_STATE.players = [];
     G.go('pg-lobby');
   },
   closeRoom() {
+    // ✅ إصلاح: إيقاف heartbeat وإغلاق الغرفة في Firebase
+    if(window._roomHeartbeat) { clearInterval(window._roomHeartbeat); window._roomHeartbeat = null; }
+    if(window._roomDocRef) {
+      window._roomDocRef.update({ open: false, closedAt: firebase.firestore.FieldValue.serverTimestamp() })
+        .catch(e => console.warn('Room close Firebase error:', e));
+      window._roomDocRef = null;
+    }
     broadcast({ type:'room_closed' });
-    PEER_STATE.conns.forEach(c => c.close());
-    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
-    PEER_STATE.peer = null; PEER_STATE.conns = [];
-    if(window._roomDocRef) { window._roomDocRef.update({ open: false }); window._roomDocRef = null; }
+    PEER_STATE.conns.forEach(c => { try { c.close(); } catch(e){} });
+    if(PEER_STATE.peer) { try { PEER_STATE.peer.destroy(); } catch(e){} }
+    PEER_STATE.peer = null; PEER_STATE.conns = []; PEER_STATE.players = [];
     G.go('pg-lobby');
   },
   startRoomPoll(role) {},  // لا يلزم مع P2P
@@ -4275,6 +4304,7 @@ body.theme-purple {
 // ═══════════════════════════════════════════
 //  ADMIN PANEL
 // ═══════════════════════════════════════════
+// ✅ تنبيه: كلمة المرور هنا مرئية في الكود المصدري - يُنصح بنقلها إلى Firebase Auth لاحقاً
 const ADMIN_PASS = 'ifyoudontlikethe';
 
 // Extra questions added by admin, keyed by cat+diff
@@ -4533,25 +4563,52 @@ Object.assign(G, {
     if (!G._parsedQs || G._parsedQs.length === 0) return;
     const cat = G._admCatUpload;
     const batch = [];
+    let skipped = 0;
+    let added = 0;
+
     G._parsedQs.forEach(q => {
-      const diff = q.type === 'mcq' ? 'easy' : q.type === 'tf' ? 'med' : 'hard';
       if (!QDB[cat]) QDB[cat] = { easy:[], med:[], hard:[] };
-      if (q.type === 'mcq')     { QDB[cat].easy.push({q:q.q,o:q.o,a:q.a}); batch.push({diff:'easy',q:q.q,o:q.o,a:q.a,type:'mcq'}); }
-      else if (q.type === 'tf') { QDB[cat].med.push({q:q.q,a:q.a});         batch.push({diff:'med', q:q.q,a:q.a,type:'tf'}); }
-      else                      { QDB[cat].hard.push({q:q.q,a:q.a});         batch.push({diff:'hard',q:q.q,a:q.a,type:'open'}); }
+      // ✅ فحص التكرار: تجاهل السؤال إذا كان موجوداً مسبقاً في أي مستوى
+      const qText = (q.q || '').trim().toLowerCase();
+      const alreadyExists =
+        (QDB[cat].easy  || []).some(x => (x.q||'').trim().toLowerCase() === qText) ||
+        (QDB[cat].med   || []).some(x => (x.q||'').trim().toLowerCase() === qText) ||
+        (QDB[cat].hard  || []).some(x => (x.q||'').trim().toLowerCase() === qText);
+      if (alreadyExists) { skipped++; return; }
+
+      if (q.type === 'mcq') {
+        QDB[cat].easy.push({q:q.q, o:q.o, a:q.a});
+        batch.push({diff:'easy', q:q.q, o:q.o, a:q.a, type:'mcq'});
+      } else if (q.type === 'tf') {
+        QDB[cat].med.push({q:q.q, a:q.a});
+        batch.push({diff:'med', q:q.q, a:q.a, type:'tf'});
+      } else {
+        QDB[cat].hard.push({q:q.q, a:q.a});
+        batch.push({diff:'hard', q:q.q, a:q.a, type:'open'});
+      }
+      added++;
     });
+
     G._parsedQs = null;
     document.getElementById('btn-import').style.display = 'none';
     document.getElementById('file-input').value = '';
     document.getElementById('upload-filename').textContent = 'لم يُختر ملف بعد';
+    const skipMsg = skipped > 0 ? ` &nbsp;|&nbsp; ⚠️ تخطي ${skipped} مكرر` : '';
+    if (batch.length === 0) {
+      document.getElementById('parse-result').innerHTML =
+        `<div class="parse-ok-box" style="border-color:var(--gold)">⚠️ جميع الأسئلة (${skipped}) موجودة مسبقاً — لم يُضف شيء</div>`;
+      return;
+    }
     document.getElementById('parse-result').innerHTML =
-      `<div class="parse-ok-box">🎉 تم الاستيراد! جارٍ الحفظ في Firebase...</div>`;
+      `<div class="parse-ok-box">🎉 جارٍ الحفظ...<br><small>✅ جديد: ${added}${skipMsg}</small></div>`;
     G._saveQsToFirestore(cat, batch).then(count => {
       document.getElementById('parse-result').innerHTML =
-        `<div class="parse-ok-box">🎉 تم حفظ ${count} سؤال في Firebase بنجاح!</div>`;
+        `<div class="parse-ok-box">🎉 تم حفظ ${count} سؤال جديد في Firebase!${skipMsg}</div>`;
+      G.renderBrowse();
     }).catch(() => {
       document.getElementById('parse-result').innerHTML =
-        `<div class="parse-ok-box">✅ استُورد في الذاكرة (تعذر الحفظ في Firebase)</div>`;
+        `<div class="parse-ok-box">✅ استُورد ${added} سؤال في الذاكرة${skipMsg}</div>`;
+      G.renderBrowse();
     });
   },
 
@@ -4662,7 +4719,17 @@ Object.assign(G, {
   },
   deleteQ(cat, diff, idx) {
     if (QDB[cat] && QDB[cat][diff]) {
+      const q = QDB[cat][diff][idx];
+      if (!q) return;
       QDB[cat][diff].splice(idx, 1);
+      // ✅ حذف من Firebase أيضاً إذا كان موجوداً
+      if (window.DB && q.q) {
+        window.DB.collection('questions')
+          .where('q', '==', q.q).where('cat', '==', cat)
+          .get().then(snap => {
+            snap.forEach(doc => doc.ref.delete());
+          }).catch(e => console.warn('Delete from Firebase error:', e));
+      }
       G.renderBrowse();
     }
   },
@@ -5194,7 +5261,13 @@ Object.assign(G, {
     let total = 0;
     for (const chunk of chunks) {
       const wr = window.DB.batch();
-      chunk.forEach(q => { wr.set(col.doc(), { cat, ...q, addedAt: firebase.firestore.FieldValue.serverTimestamp() }); });
+      chunk.forEach(q => {
+        // ✅ إصلاح: حذف الحقول غير المعرّفة قبل الحفظ
+        const cleanQ = {};
+        Object.entries({ cat, ...q }).forEach(([k,v]) => { if (v !== undefined) cleanQ[k] = v; });
+        cleanQ.addedAt = firebase.firestore.FieldValue.serverTimestamp();
+        wr.set(col.doc(), cleanQ);
+      });
       await wr.commit();
       total += chunk.length;
     }
@@ -5214,7 +5287,13 @@ Object.assign(G, {
         if (!QDB[cat][diff]) QDB[cat][diff] = [];
         // Avoid duplicates
         const exists = QDB[cat][diff].some(x => x.q === q.q);
-        if (!exists) QDB[cat][diff].push({ q: q.q, a: q.a, type: q.type || 'mcq', opts: q.opts });
+        if (!exists) {
+          // ✅ إصلاح: توحيد اسم حقل الخيارات (opts → o)
+          const entry = { q: q.q, a: q.a, type: q.type || 'mcq' };
+          if (q.o) entry.o = q.o;
+          else if (q.opts) entry.o = q.opts;
+          QDB[cat][diff].push(entry);
+        }
       });
       console.log(`🔥 Loaded ${snap.size} questions from Firestore`);
     } catch(e) { console.warn('Firestore questions load failed', e); }
@@ -5449,6 +5528,60 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js")
     .then(()=>console.log("Seat Clash ready"));
 }
+
+// ════════════════════════════════════════════════════════
+//  إصلاح: إغلاق الغرفة عند إغلاق المتصفح أو التبويب
+// ════════════════════════════════════════════════════════
+window.addEventListener('beforeunload', () => {
+  // إغلاق الغرفة في Firebase إذا كان المستخدم مضيفاً
+  if (window._roomDocRef && PEER_STATE.isHost) {
+    // navigator.sendBeacon لضمان الإرسال حتى عند الإغلاق
+    const url = `https://firestore.googleapis.com/v1/projects/abde-a49ec/databases/(default)/documents/rooms/${PEER_STATE.roomCode}`;
+    try {
+      window._roomDocRef.update({ open: false });
+    } catch(e) {}
+  }
+  // إغلاق اتصالات P2P
+  if (PEER_STATE.peer) {
+    try { PEER_STATE.peer.destroy(); } catch(e) {}
+  }
+});
+
+// ════════════════════════════════════════════════════════
+//  إصلاح: تنظيف الغرف القديمة تلقائياً عند التحميل
+// ════════════════════════════════════════════════════════
+async function cleanupStaleRooms() {
+  if (!window.DB) return;
+  try {
+    const cutoff = new Date(Date.now() - 7200000); // أقدم من ساعتين
+    const snap = await window.DB.collection('rooms')
+      .where('open', '==', true)
+      .get();
+    const batch = window.DB.batch();
+    let count = 0;
+    snap.docs.forEach(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt?.toDate?.();
+      if (createdAt && createdAt < cutoff) {
+        batch.update(doc.ref, { open: false });
+        count++;
+      }
+    });
+    if (count > 0) {
+      await batch.commit();
+      console.log(`🧹 تم تنظيف ${count} غرفة قديمة`);
+    }
+  } catch(e) {
+    console.warn('Room cleanup error:', e);
+  }
+}
+
+// تنظيف الغرف القديمة عند فتح صفحة الغرف
+const _origBrowseRooms = G.browseRooms.bind(G);
+G.browseRooms = function() {
+  cleanupStaleRooms();
+  _origBrowseRooms();
+};
 
 // Firebase initialized in <head>
 </script>
