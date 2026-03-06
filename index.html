@@ -1,0 +1,4197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Seat Clash</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0b0b1f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Seat Clash">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+:root {
+  --fire: #ff4500;
+  --fire2: #ff8c00;
+  --gold: #ffd700;
+  --dark: #060612;
+  --card: #0e0e1e;
+  --card2: #13132a;
+  --border: #1e1e3a;
+  --green: #00e676;
+  --red: #ff1744;
+  --blue: #40c4ff;
+  --text: #ffffff;
+  --muted: #555580;
+  --r: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--dark);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 110%, rgba(255,69,0,.15) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── SCREENS ── */
+.page {
+  display: none;
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: var(--dark);
+  z-index: 10;
+}
+.page.show { display: block; }
+#pg-splash.show { display: flex; }
+#pg-login.show { display: block; }
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 16px 80px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes flicker { 0% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 20px #ff4500); } 100% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 40px #ff8c00); } }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+@keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes confettiFall { 0% { opacity: 1; transform: translateY(-10px) rotate(0deg); } 100% { opacity: 0; transform: translateY(100vh) rotate(720deg); } }
+@keyframes countDown { 0% { transform: scale(1.5); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 80% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8); opacity: 0; } }
+@keyframes timerWarn { 0%,100%{background:var(--fire)} 50%{background:#ff0033} }
+
+.anim-fadein { animation: fadeUp 0.35s ease both; }
+.anim-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+
+/* ── BUTTONS ── */
+.btn-fire {
+  width: 100%;
+  background: linear-gradient(135deg, var(--fire), var(--fire2));
+  border: none;
+  border-radius: var(--r);
+  padding: 17px;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 28px rgba(255,69,0,.38);
+  transition: all .25s;
+  letter-spacing: .5px;
+}
+.btn-fire:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(255,69,0,.52); }
+.btn-fire:active { transform: translateY(0); }
+
+.btn-ghost {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 13px;
+  color: #aaa;
+  font-family: 'Cairo', sans-serif;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  width: 100%;
+}
+.btn-ghost:hover { border-color: var(--fire); color: var(--fire); }
+
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: 'Cairo', sans-serif;
+  font-size: .85rem;
+  cursor: pointer;
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color .2s;
+}
+.btn-back:hover { color: var(--fire); }
+
+/* ── SPLASH ── */
+#pg-splash {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+  padding: 30px 20px;
+}
+#pg-splash.show { display: flex; }
+
+.logo-emoji { font-size: 5.5rem; animation: flicker 1.4s infinite alternate; display: block; margin-bottom: 12px; }
+.game-title {
+  font-size: 3.2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff4500, #ffd700, #ff7700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+.game-sub { color: var(--muted); font-size: .82rem; margin-bottom: 6px; }
+.game-ver {
+  display: inline-block;
+  background: rgba(255,215,0,.08);
+  color: var(--gold);
+  font-size: .64rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,215,0,.18);
+  margin-bottom: 30px;
+}
+.feats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 30px;
+}
+.feat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.feat-icon { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+.feat-text { font-size: .68rem; color: #666; font-weight: 700; }
+.splash-btn-wrap { width: 100%; max-width: 360px; }
+.copy-txt { color: #1a1a30; font-size: .58rem; margin-top: 20px; }
+
+/* ── SETUP ── */
+.page-header {
+  text-align: center;
+  padding: 24px 0 18px;
+}
+.page-header h2 {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--gold);
+}
+.page-header p { color: var(--muted); font-size: .78rem; margin-top: 4px; }
+
+.counter-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.counter-label { font-size: .8rem; color: var(--muted); font-weight: 700; text-align: center; }
+.counter-num { font-size: 3rem; font-weight: 900; color: var(--gold); min-width: 60px; text-align: center; line-height: 1; }
+.counter-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--card2);
+  border: 2px solid var(--border);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+  font-family: 'Cairo', sans-serif;
+}
+.counter-btn:hover { border-color: var(--fire); color: var(--fire); }
+.counter-btn:active { transform: scale(.92); }
+
+/* Player rows */
+.players-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  transition: border-color .2s;
+  animation: fadeUp .25s ease both;
+}
+.player-row:focus-within { border-color: rgba(255,69,0,.5); }
+.player-num { color: var(--muted); font-size: .75rem; font-weight: 900; min-width: 22px; text-align: center; }
+.av-pick {
+  font-size: 1.7rem;
+  cursor: pointer;
+  background: var(--card2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+  flex-shrink: 0;
+}
+.av-pick:hover { border-color: var(--fire); transform: scale(1.08); }
+.player-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: .95rem;
+  font-weight: 700;
+  outline: none;
+  min-width: 0;
+}
+.player-input::placeholder { color: var(--muted); font-weight: 400; }
+
+/* Avatar popup */
+.av-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 1000;
+  align-items: flex-end;
+  justify-content: center;
+}
+.av-overlay.open { display: flex; }
+.av-sheet {
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 680px;
+  animation: fadeUp .3s ease;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.av-sheet-title { text-align: center; font-size: .9rem; color: var(--muted); margin-bottom: 14px; font-weight: 700; }
+.av-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 14px; }
+.av-item {
+  font-size: 1.6rem;
+  cursor: pointer;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: all .15s;
+  background: var(--card2);
+}
+.av-item:hover { background: var(--fire); transform: scale(1.15); }
+.av-close-btn {
+  width: 100%;
+  background: var(--card2);
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--muted);
+  font-family: 'Cairo', sans-serif;
+  font-size: .9rem;
+  cursor: pointer;
+}
+
+/* ── SETTINGS ── */
+.section-label {
+  font-size: .75rem;
+  font-weight: 900;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 20px 0 10px;
+}
+
+.option-grid { display: grid; gap: 10px; }
+.option-grid.col2 { grid-template-columns: 1fr 1fr; }
+.option-grid.col4 { grid-template-columns: repeat(4, 1fr); }
+
+.opt-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all .2s;
+}
+.opt-card:hover { border-color: rgba(255,69,0,.4); }
+.opt-card.chosen { border-color: var(--fire); background: rgba(255,69,0,.1); }
+.opt-card .oc-icon { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+.opt-card .oc-label { font-size: .78rem; font-weight: 700; color: #ccc; }
+.opt-card .oc-desc { font-size: .64rem; color: var(--muted); margin-top: 3px; }
+.opt-card.chosen .oc-label { color: var(--fire); }
+
+.cats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cat-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all .2s;
+}
+.cat-card .cc-icon { font-size: 1.3rem; display: block; margin-bottom: 3px; }
+.cat-card .cc-label { font-size: .68rem; font-weight: 700; color: var(--muted); }
+.cat-card.chosen { border-color: var(--gold); background: rgba(255,215,0,.07); }
+.cat-card.chosen .cc-label { color: var(--gold); }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.toggle-row:hover { border-color: rgba(255,69,0,.3); }
+.toggle-left { display: flex; align-items: center; gap: 12px; }
+.toggle-icon { font-size: 1.3rem; }
+.toggle-title { font-size: .88rem; font-weight: 700; }
+.toggle-desc { font-size: .68rem; color: var(--muted); }
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  background: var(--border);
+  border-radius: 12px;
+  position: relative;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: #555;
+  border-radius: 50%;
+  top: 3px;
+  right: 3px;
+  transition: all .2s;
+}
+.toggle-row.on .toggle-switch { background: var(--fire); }
+.toggle-row.on .toggle-switch::after { right: 23px; background: #fff; }
+
+/* ── BRACKET ── */
+.bracket-vs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+.bracket-match {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.bracket-match.active { border-color: var(--fire); }
+.bracket-pl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+}
+.bracket-pl:first-child { border-bottom: 1px solid var(--border); }
+.bracket-pl-av { font-size: 1.5rem; }
+.bracket-pl-name { font-size: .92rem; font-weight: 700; flex: 1; }
+.bracket-pl-score { font-size: 1.1rem; font-weight: 900; color: var(--gold); }
+.bracket-vs-sep {
+  text-align: center;
+  padding: 5px;
+  background: var(--border);
+  font-size: .75rem;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+/* ── GAME ── */
+#pg-game {
+  background: var(--dark);
+}
+
+.game-top {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.cur-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cur-av { font-size: 2rem; }
+.cur-name { font-size: 1rem; font-weight: 900; }
+.cur-round { font-size: .7rem; color: var(--muted); }
+.hearts-row { display: flex; gap: 3px; font-size: 1rem; }
+
+.duel-bar {
+  display: none;
+  background: var(--card2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+}
+.duel-bar.show { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.duel-side { display: flex; align-items: center; gap: 8px; flex: 1; }
+.duel-side.right { flex-direction: row-reverse; }
+.duel-av { font-size: 1.4rem; }
+.duel-name { font-size: .8rem; font-weight: 700; }
+.duel-pts { font-size: 1.1rem; font-weight: 900; color: var(--gold); }
+.duel-sep { font-size: .8rem; color: var(--muted); font-weight: 900; }
+
+.game-body { padding: 14px 16px; max-width: 680px; margin: 0 auto; }
+
+/* Progress dots */
+.prog-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 18px; }
+.prog-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all .25s;
+}
+.prog-dot.done { background: var(--green); }
+.prog-dot.cur { background: var(--gold); transform: scale(1.3); }
+
+/* Timer */
+.timer-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+.timer-ring { position: relative; width: 88px; height: 88px; }
+.timer-svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.timer-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+.timer-fg { fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 251.3; transition: stroke-dashoffset .9s linear, stroke .3s; }
+.timer-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+/* Q card */
+.q-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 14px;
+  animation: fadeUp .3s ease;
+}
+.q-meta { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.q-tag {
+  background: rgba(255,69,0,.15);
+  color: var(--fire);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.q-diff-tag {
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.q-diff-tag.easy { background: rgba(0,230,118,.1); color: var(--green); }
+.q-diff-tag.med { background: rgba(255,215,0,.1); color: var(--gold); }
+.q-diff-tag.hard { background: rgba(255,23,68,.1); color: var(--red); }
+.q-text { font-size: 1.15rem; font-weight: 700; line-height: 1.6; }
+.q-hint { margin-top: 12px; font-size: .85rem; color: var(--gold); font-weight: 700; padding: 10px 14px; background: rgba(255,215,0,.07); border-radius: 10px; }
+
+/* MCQ */
+.opts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.opt-btn {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 15px 12px;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+  line-height: 1.4;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--fire); background: rgba(255,69,0,.1); transform: translateY(-1px); }
+.opt-btn:active:not(:disabled) { transform: translateY(0); }
+.opt-btn.correct { border-color: var(--green)!important; background: rgba(0,230,118,.15)!important; color: var(--green)!important; }
+.opt-btn.wrong { border-color: var(--red)!important; background: rgba(255,23,68,.15)!important; color: var(--red)!important; }
+.opt-btn:disabled { cursor: default; }
+
+/* T/F */
+.tf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.tf-btn {
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tf-true { background: rgba(0,230,118,.08); border-color: rgba(0,230,118,.3); color: var(--green); }
+.tf-false { background: rgba(255,23,68,.08); border-color: rgba(255,23,68,.3); color: var(--red); }
+.tf-true:hover:not(:disabled) { background: rgba(0,230,118,.2); transform: translateY(-1px); }
+.tf-false:hover:not(:disabled) { background: rgba(255,23,68,.2); transform: translateY(-1px); }
+.tf-btn.correct { border-width: 3px; opacity: 1; }
+.tf-btn.wrong { opacity: .4; }
+.tf-btn:disabled { cursor: default; }
+
+/* Open */
+.open-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.open-correct { background: rgba(0,230,118,.1); border: 2px solid var(--green); border-radius: 14px; padding: 16px; color: var(--green); font-family: 'Cairo', sans-serif; font-size: .95rem; font-weight: 900; cursor: pointer; transition: all .2s; }
+.open-wrong { background: rgba(255,23,68,.1); border: 2px solid var(--red); border-radius: 14px; padding: 16px; color: var(--red); font-family: 'Cairo', sans-serif; font-size: .95rem; font-weight: 900; cursor: pointer; transition: all .2s; }
+.open-correct:hover { background: rgba(0,230,118,.2); transform: translateY(-1px); }
+.open-wrong:hover { background: rgba(255,23,68,.2); transform: translateY(-1px); }
+
+/* Action row */
+.action-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.btn-pass {
+  flex: 1;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-family: 'Cairo', sans-serif;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+.btn-pass:hover { border-color: var(--muted); color: #aaa; }
+.btn-next {
+  flex: 2;
+  background: linear-gradient(135deg, var(--fire), var(--fire2));
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: .95rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .2s;
+}
+.btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,69,0,.35); }
+
+.btn-joker {
+  width: 100%;
+  background: linear-gradient(135deg, #6a0dad, #9b59b6);
+  border: none;
+  border-radius: 14px;
+  padding: 13px;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: .88rem;
+  font-weight: 900;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: all .2s;
+}
+.btn-joker:hover { transform: translateY(-1px); }
+
+/* Score bar */
+.score-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.score-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+}
+.score-label { font-size: .6rem; color: var(--muted); font-weight: 700; }
+.score-val { font-size: 1.2rem; font-weight: 900; color: var(--gold); }
+
+/* Chain bonus */
+.chain-pop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%) scale(0);
+  background: linear-gradient(135deg, var(--fire), var(--gold));
+  color: #000;
+  font-size: 1.8rem;
+  font-weight: 900;
+  padding: 16px 30px;
+  border-radius: 20px;
+  z-index: 200;
+  pointer-events: none;
+  transition: transform .2s cubic-bezier(.175,.885,.32,1.275), opacity .2s;
+  opacity: 0;
+}
+.chain-pop.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+
+/* ── COUNTDOWN ── */
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  flex-direction: column;
+  gap: 10px;
+}
+.countdown-overlay.show { display: flex; }
+.countdown-num {
+  font-size: 7rem;
+  font-weight: 900;
+  color: var(--gold);
+  animation: countDown 1s ease;
+}
+.countdown-player { font-size: 1.1rem; color: #aaa; font-weight: 700; }
+
+/* ── TIME UP ── */
+.timeup-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.timeup-emoji { font-size: 3rem; display: block; margin-bottom: 8px; }
+.timeup-title { font-size: 1.4rem; font-weight: 900; color: var(--gold); margin-bottom: 8px; }
+.timeup-detail { font-size: .88rem; color: var(--muted); line-height: 1.7; }
+.timeup-pts { font-size: 2rem; font-weight: 900; color: var(--fire); margin: 10px 0; }
+
+.duel-winner-box {
+  background: linear-gradient(135deg, rgba(255,69,0,.1), rgba(255,215,0,.08));
+  border: 2px solid var(--fire);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+.duel-winner-title { font-size: .75rem; color: var(--muted); margin-bottom: 6px; font-weight: 700; }
+.duel-winner-name { font-size: 1.2rem; font-weight: 900; color: var(--gold); }
+
+/* Leaderboard */
+.lb-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.lb-title { font-size: .8rem; font-weight: 900; color: var(--muted); margin-bottom: 12px; text-align: center; }
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-rank { font-size: .9rem; min-width: 24px; text-align: center; }
+.lb-av { font-size: 1.2rem; }
+.lb-name { font-size: .88rem; font-weight: 700; flex: 1; }
+.lb-pts { font-size: 1rem; font-weight: 900; color: var(--gold); }
+
+/* ── RESULTS ── */
+.winner-banner {
+  text-align: center;
+  padding: 30px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.winner-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255,215,0,.08) 0%, transparent 70%);
+}
+.winner-crown { font-size: 2.5rem; display: block; margin-bottom: 6px; }
+.winner-av { font-size: 4rem; display: block; margin-bottom: 6px; }
+.winner-name { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
+.winner-sub { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+.results-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.result-rank { font-size: 1.1rem; min-width: 28px; text-align: center; }
+.result-av { font-size: 1.5rem; }
+.result-info { flex: 1; }
+.result-name { font-size: .92rem; font-weight: 900; }
+.result-title { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+.result-pts { font-size: 1.2rem; font-weight: 900; color: var(--gold); }
+
+.btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SPLASH ═══════════════ -->
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="pg-login" class="page show">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px;text-align:center">
+    <span style="font-size:5rem;animation:flicker 1.4s infinite alternate">🔥</span>
+    <div class="game-title">الكرسي الساخن</div>
+    <div class="game-ver" style="margin-bottom:32px">الإصدار الخامس — احترافي</div>
+    <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div class="adm-field-label" style="text-align:right;margin-bottom:6px">الاسم الأول</div>
+        <input id="login-fname" class="adm-input" placeholder="مثال: محمد" maxlength="20" onkeydown="if(event.key==='Enter')document.getElementById('login-lname').focus()">
+      </div>
+      <div>
+        <div class="adm-field-label" style="text-align:right;margin-bottom:6px">الاسم الثاني</div>
+        <input id="login-lname" class="adm-input" placeholder="مثال: الأحمد" maxlength="20" onkeydown="if(event.key==='Enter')G.doLogin()">
+      </div>
+      <div id="login-err" style="color:var(--red);font-size:.8rem;display:none">⚠️ أدخل الاسم الأول والثاني</div>
+      <button class="btn-fire" style="margin-top:8px" onclick="G.doLogin()">دخول 🔥</button>
+    </div>
+    <div class="copy-txt" style="margin-top:30px">© 2025 الكرسي الساخن — جميع الحقوق محفوظة</div>
+    <button class="admin-entry-btn" onclick="G.openAdminLogin()">⚙️</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SPLASH / MODE SELECT ═══════════════ -->
+<div id="pg-splash" class="page">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px;text-align:center">
+    <div id="splash-greeting" style="font-size:.95rem;color:var(--muted);margin-bottom:6px"></div>
+    <span style="font-size:4.5rem;animation:flicker 1.4s infinite alternate">🔥</span>
+    <div class="game-title">الكرسي الساخن</div>
+    <div class="game-ver" style="margin-bottom:28px">الإصدار الخامس</div>
+
+    <!-- Mode cards -->
+    <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;margin-bottom:24px">
+      <!-- OFF Network = Local game -->
+      <div class="mode-card" onclick="G.startOffline()">
+        <div class="mode-card-top">
+          <span class="mode-icon">🎮</span>
+          <div class="mode-badge off-badge">Off N</div>
+        </div>
+        <div class="mode-title">لعب محلي</div>
+        <div class="mode-desc">العب مع أصدقائك على نفس الجهاز — كل الميزات متاحة</div>
+        <div class="mode-arrow">← ابدأ</div>
+      </div>
+
+      <!-- ON Network = Multiplayer -->
+      <div class="mode-card mode-card-net" onclick="G.startOnline()">
+        <div class="mode-card-top">
+          <span class="mode-icon">🌐</span>
+          <div class="mode-badge on-badge">On N</div>
+        </div>
+        <div class="mode-title">لعب شبكي</div>
+        <div class="mode-desc">العب مع أصدقائك على نفس الشبكة — كل جهاز بجواله</div>
+        <div class="mode-arrow net-arrow">← ابدأ</div>
+      </div>
+    </div>
+
+    <button class="btn-ghost" style="max-width:380px;width:100%;margin-bottom:10px" onclick="G.openAdminLogin()">⚙️ لوحة الإدارة</button>
+    <button class="btn-ghost" style="max-width:380px;width:100%;background:transparent;border-color:transparent;color:var(--muted);font-size:.8rem" onclick="G.logout()">تسجيل خروج ↩</button>
+  </div>
+</div>
+
+<!-- ═══════════════ NETWORK LOBBY ═══════════════ -->
+<div id="pg-lobby" class="page">
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px">
+    <div style="font-size:1.3rem;font-weight:900;color:var(--gold)">🌐 اللعب الشبكي</div>
+    <button class="btn-back" onclick="G.go('pg-splash')">← رجوع</button>
+  </div>
+  <div id="lobby-user-badge" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:1.5rem">👤</span>
+    <div><div id="lobby-user-name" style="font-weight:900;font-size:.95rem"></div><div style="font-size:.7rem;color:var(--muted)">اللاعب في الشبكة</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <div class="mode-card" onclick="G.createRoom()" style="padding:20px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">🏠</div>
+      <div class="mode-title">إنشاء غرفة</div>
+      <div class="mode-desc">أنت المضيف</div>
+    </div>
+    <div class="mode-card mode-card-net" onclick="G.browseRooms()" style="padding:20px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:8px">🔍</div>
+      <div class="mode-title">دخول غرفة</div>
+      <div class="mode-desc">انضم للاعبين</div>
+    </div>
+  </div>
+  <div style="background:rgba(64,196,255,.06);border:1px solid rgba(64,196,255,.2);border-radius:12px;padding:14px;font-size:.78rem;color:#aaa;line-height:1.8">
+    💡 لا يحتاج إنترنت — فقط نفس الـ WiFi أو نقطة الاتصال<br>
+    📡 يعمل مباشرة بين الأجهزة بدون خادم
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ CREATE ROOM ═══════════════ -->
+<div id="pg-create-room" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-lobby')" style="margin-top:16px">← رجوع</button>
+  <div class="page-header"><h2>🏠 إنشاء غرفة</h2><p>اضبط إعدادات اللعبة</p></div>
+  <div class="adm-card" style="margin-bottom:14px">
+    <div class="adm-field-label">اسم الغرفة</div>
+    <input id="room-name-input" class="adm-input" placeholder="مثال: غرفة العائلة 🔥" maxlength="30">
+  </div>
+  <div class="section-label">🏆 نوع البطولة</div>
+  <div class="option-grid col2">
+    <div class="opt-card chosen" id="rm-mode-all" onclick="G.setRoomMode('all')"><span class="oc-icon">🎯</span><div class="oc-label">الكل يلعب</div></div>
+    <div class="opt-card" id="rm-mode-bracket" onclick="G.setRoomMode('bracket')"><span class="oc-icon">⚔️</span><div class="oc-label">شامبيونة</div></div>
+  </div>
+  <div class="section-label">⚡ مستوى الصعوبة</div>
+  <div class="option-grid col4">
+    <div class="opt-card" id="rm-diff-easy" onclick="G.setRoomDiff('easy')"><span class="oc-icon">😊</span><div class="oc-label">سهل</div></div>
+    <div class="opt-card" id="rm-diff-med" onclick="G.setRoomDiff('med')"><span class="oc-icon">🔥</span><div class="oc-label">متوسط</div></div>
+    <div class="opt-card" id="rm-diff-hard" onclick="G.setRoomDiff('hard')"><span class="oc-icon">💀</span><div class="oc-label">صعب</div></div>
+    <div class="opt-card chosen" id="rm-diff-mixed" onclick="G.setRoomDiff('mixed')"><span class="oc-icon">🎲</span><div class="oc-label">مختلط</div></div>
+  </div>
+  <div class="section-label">⏱️ وقت السؤال</div>
+  <div class="option-grid col4">
+    <div class="opt-card" id="rm-time-20" onclick="G.setRoomTime(20)"><span class="oc-icon">⚡</span><div class="oc-label">20ث</div></div>
+    <div class="opt-card chosen" id="rm-time-30" onclick="G.setRoomTime(30)"><span class="oc-icon">🔥</span><div class="oc-label">30ث</div></div>
+    <div class="opt-card" id="rm-time-60" onclick="G.setRoomTime(60)"><span class="oc-icon">⏱️</span><div class="oc-label">60ث</div></div>
+    <div class="opt-card" id="rm-time-90" onclick="G.setRoomTime(90)"><span class="oc-icon">💪</span><div class="oc-label">90ث</div></div>
+  </div>
+  <button class="btn-fire" style="margin-top:20px" onclick="G.confirmCreateRoom()">🏠 إنشاء الغرفة</button>
+</div>
+</div>
+
+<!-- ═══════════════ BROWSE ROOMS ═══════════════ -->
+<div id="pg-browse-rooms" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-lobby')" style="margin-top:16px">← رجوع</button>
+  <div class="page-header"><h2>🔍 الغرف المتاحة</h2><p>اختر غرفة للانضمام</p></div>
+  <div id="rooms-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+    <div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem">🔄 جارٍ البحث...</div>
+  </div>
+  <button class="btn-ghost" onclick="G.browseRooms()">🔄 تحديث</button>
+</div>
+</div>
+
+<!-- ═══════════════ ROOM HOST ═══════════════ -->
+<div id="pg-room-host" class="page">
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px">
+    <div>
+      <div id="rh-room-name" style="font-size:1.2rem;font-weight:900;color:var(--gold)"></div>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:2px" id="rh-room-code"></div>
+    </div>
+    <div style="background:rgba(255,69,0,.12);border:1px solid var(--fire);border-radius:20px;padding:4px 12px;font-size:.7rem;color:var(--fire);font-weight:900">👑 ADMIN</div>
+  </div>
+  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:8px">👥 اللاعبون (<span id="rh-count">1</span>)</div>
+  <div id="rh-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+  <div id="rh-requests-section" style="display:none;margin-bottom:14px">
+    <div style="font-size:.75rem;font-weight:900;color:var(--gold);margin-bottom:8px">⏳ طلبات الانضمام</div>
+    <div id="rh-requests"></div>
+  </div>
+  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:6px">💬 الدردشة</div>
+  <div id="rh-chat" class="chat-box"></div>
+  <div style="display:flex;gap:8px;margin:8px 0 14px">
+    <input id="rh-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('host')">
+    <button onclick="G.sendChat('host')" style="background:var(--fire);border:none;border-radius:12px;padding:0 16px;color:#fff;cursor:pointer;font-size:1.1rem">↑</button>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="btn-fire" onclick="G.hostStartGame()" style="flex:2">🚀 ابدأ اللعبة</button>
+    <button class="btn-ghost" onclick="G.closeRoom()" style="flex:1">إغلاق</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ ROOM GUEST ═══════════════ -->
+<div id="pg-room-guest" class="page">
+<div class="wrap">
+  <div style="padding:18px 0 10px">
+    <div id="rg-room-name" style="font-size:1.2rem;font-weight:900;color:var(--gold)"></div>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:2px">في انتظار المضيف...</div>
+  </div>
+  <div id="rg-status-box" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px">
+    <div style="font-size:1.5rem;margin-bottom:6px" id="rg-status-icon">⏳</div>
+    <div id="rg-status-text" style="font-size:.88rem;color:var(--muted)">في انتظار الموافقة...</div>
+  </div>
+  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:8px">👥 اللاعبون</div>
+  <div id="rg-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+  <div style="font-size:.75rem;font-weight:900;color:var(--muted);margin-bottom:6px">💬 الدردشة</div>
+  <div id="rg-chat" class="chat-box"></div>
+  <div style="display:flex;gap:8px;margin:8px 0 14px">
+    <input id="rg-chat-input" class="adm-input" style="flex:1" placeholder="رسالة..." maxlength="100" onkeydown="if(event.key==='Enter')G.sendChat('guest')">
+    <button onclick="G.sendChat('guest')" style="background:var(--fire);border:none;border-radius:12px;padding:0 16px;color:#fff;cursor:pointer;font-size:1.1rem">↑</button>
+  </div>
+  <button class="btn-ghost" onclick="G.leaveRoom()">↩ مغادرة</button>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ SETUP ═══════════════ -->
+<div id="pg-setup" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-splash')">← رجوع</button>
+  <div class="page-header">
+    <h2>👥 اللاعبون</h2>
+    <p>حدد العدد وأدخل أسماء اللاعبين</p>
+  </div>
+  <div class="counter-box">
+    <button class="counter-btn" onclick="G.changeCount(-1)">−</button>
+    <div>
+      <div class="counter-label">عدد اللاعبين</div>
+      <div class="counter-num" id="count-display">4</div>
+    </div>
+    <button class="counter-btn" onclick="G.changeCount(1)">+</button>
+  </div>
+  <div class="players-list" id="players-list"></div>
+  <button class="btn-fire" onclick="G.goSettings()">التالي ⚙️</button>
+</div>
+</div>
+
+<!-- Avatar overlay -->
+<div class="av-overlay" id="av-overlay" onclick="G.closeAv(event)">
+  <div class="av-sheet">
+    <div class="av-sheet-title">اختر أفاتارك</div>
+    <div class="av-grid" id="av-grid"></div>
+    <button class="av-close-btn" onclick="G.closeAv()">إغلاق</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SETTINGS ═══════════════ -->
+<div id="pg-settings" class="page">
+<div class="wrap">
+  <button class="btn-back" onclick="G.go('pg-setup')">← رجوع</button>
+  <div class="page-header">
+    <h2>⚙️ إعدادات اللعبة</h2>
+    <p>خصّص تجربتك قبل الانطلاق</p>
+  </div>
+
+  <div class="section-label">🏆 نوع البطولة</div>
+  <div class="option-grid col2">
+    <div class="opt-card chosen" id="mode-all" onclick="G.setMode('all')">
+      <span class="oc-icon">🎯</span>
+      <div class="oc-label">الكل يلعب</div>
+      <div class="oc-desc">كل لاعب على الكرسي دوراً</div>
+    </div>
+    <div class="opt-card" id="mode-bracket" onclick="G.setMode('bracket')">
+      <span class="oc-icon">⚔️</span>
+      <div class="oc-label">شامبيونة</div>
+      <div class="oc-desc">مباريات ثنائية حتى البطل</div>
+    </div>
+  </div>
+
+  <div class="section-label">⚡ مستوى الصعوبة</div>
+  <div class="option-grid col4">
+    <div class="opt-card" id="diff-easy" onclick="G.setDiff('easy')">
+      <span class="oc-icon">😊</span>
+      <div class="oc-label">سهل</div>
+    </div>
+    <div class="opt-card" id="diff-med" onclick="G.setDiff('med')">
+      <span class="oc-icon">🔥</span>
+      <div class="oc-label">متوسط</div>
+    </div>
+    <div class="opt-card" id="diff-hard" onclick="G.setDiff('hard')">
+      <span class="oc-icon">💀</span>
+      <div class="oc-label">صعب</div>
+    </div>
+    <div class="opt-card chosen" id="diff-mixed" onclick="G.setDiff('mixed')">
+      <span class="oc-icon">🎲</span>
+      <div class="oc-label">مختلط</div>
+    </div>
+  </div>
+
+  <div class="section-label">📚 الفئات</div>
+  <div class="cats-grid" id="cats-grid"></div>
+
+  <div class="section-label">⏱️ الوقت للسؤال</div>
+  <div class="option-grid col4">
+    <div class="opt-card" id="time-20" onclick="G.setTime(20)">
+      <span class="oc-icon">⚡</span>
+      <div class="oc-label">20 ث</div>
+    </div>
+    <div class="opt-card chosen" id="time-30" onclick="G.setTime(30)">
+      <span class="oc-icon">🔥</span>
+      <div class="oc-label">30 ث</div>
+    </div>
+    <div class="opt-card" id="time-60" onclick="G.setTime(60)">
+      <span class="oc-icon">⏱️</span>
+      <div class="oc-label">60 ث</div>
+    </div>
+    <div class="opt-card" id="time-90" onclick="G.setTime(90)">
+      <span class="oc-icon">💪</span>
+      <div class="oc-label">90 ث</div>
+    </div>
+  </div>
+
+  <div class="section-label">✨ مميزات إضافية</div>
+  <div class="toggle-row on" id="tog-hearts" onclick="G.toggleFeat('hearts')">
+    <div class="toggle-left">
+      <span class="toggle-icon">❤️</span>
+      <div><div class="toggle-title">نظام الحياة</div><div class="toggle-desc">3 أخطاء = خروج من الجولة</div></div>
+    </div>
+    <div class="toggle-switch"></div>
+  </div>
+  <div class="toggle-row on" id="tog-joker" onclick="G.toggleFeat('joker')">
+    <div class="toggle-left">
+      <span class="toggle-icon">🃏</span>
+      <div><div class="toggle-title">الجوكر</div><div class="toggle-desc">حذف خيارين خاطئين مرة واحدة</div></div>
+    </div>
+    <div class="toggle-switch"></div>
+  </div>
+  <div class="toggle-row on" id="tog-chain" onclick="G.toggleFeat('chain')">
+    <div class="toggle-left">
+      <span class="toggle-icon">⛓️</span>
+      <div><div class="toggle-title">مكافأة السلسلة</div><div class="toggle-desc">3 صحيح متتالية = نقاط إضافية</div></div>
+    </div>
+    <div class="toggle-switch"></div>
+  </div>
+
+  <div style="margin-top:24px">
+    <button class="btn-fire" onclick="G.startGame()">🔥 ابدأ البطولة!</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ BRACKET ═══════════════ -->
+<div id="pg-bracket" class="page">
+<div class="wrap">
+  <div class="page-header">
+    <h2>⚔️ بطولة الشامبيونة</h2>
+    <p id="bracket-round-label">الدور الأول</p>
+  </div>
+  <div class="bracket-vs" id="bracket-matches"></div>
+  <button class="btn-fire" id="bracket-start-btn" onclick="G.startBracketMatch()">▶️ ابدأ المباراة</button>
+</div>
+</div>
+
+<!-- ═══════════════ GAME ═══════════════ -->
+<div id="pg-game" class="page">
+
+  <!-- Top bar -->
+  <div class="game-top">
+    <div class="cur-player">
+      <span class="cur-av" id="cur-av">👤</span>
+      <div>
+        <div class="cur-name" id="cur-name">—</div>
+        <div class="cur-round" id="cur-round">الجولة 1</div>
+      </div>
+    </div>
+    <div class="hearts-row" id="hearts-row"></div>
+  </div>
+
+  <!-- Duel bar (bracket mode) -->
+  <div class="duel-bar" id="duel-bar">
+    <div class="duel-side">
+      <span class="duel-av" id="d-av1">👤</span>
+      <div><div class="duel-name" id="d-name1">—</div><div class="duel-pts" id="d-pts1">0</div></div>
+    </div>
+    <div class="duel-sep">⚔️</div>
+    <div class="duel-side right">
+      <span class="duel-av" id="d-av2">👤</span>
+      <div style="text-align:right"><div class="duel-name" id="d-name2">—</div><div class="duel-pts" id="d-pts2">0</div></div>
+    </div>
+  </div>
+
+  <div class="game-body">
+    <!-- Score -->
+    <div class="score-bar">
+      <div class="score-item"><div class="score-label">✅ صح</div><div class="score-val" id="sc-ok">0</div></div>
+      <div class="score-item"><div class="score-label">❌ خطأ</div><div class="score-val" id="sc-bad">0</div></div>
+      <div class="score-item"><div class="score-label">⏩ باس</div><div class="score-val" id="sc-skip">0</div></div>
+      <div class="score-item"><div class="score-label">🏆 نقاط</div><div class="score-val" id="sc-pts">0</div></div>
+    </div>
+
+    <!-- Progress -->
+    <div class="prog-row" id="prog-row"></div>
+
+    <!-- Timer -->
+    <div class="timer-wrap">
+      <div class="timer-ring">
+        <svg class="timer-svg" viewBox="0 0 88 88" width="88" height="88">
+          <circle class="timer-bg" cx="44" cy="44" r="40"/>
+          <circle class="timer-fg" id="timer-arc" cx="44" cy="44" r="40"/>
+        </svg>
+        <div class="timer-num" id="timer-num">30</div>
+      </div>
+    </div>
+
+    <!-- Question card -->
+    <div class="q-card" id="q-card">
+      <div class="q-meta" id="q-meta"></div>
+      <div class="q-text" id="q-text">استعد...</div>
+      <div class="q-hint" id="q-hint" style="display:none"></div>
+    </div>
+
+    <!-- Answers -->
+    <div class="opts-grid" id="opts-grid" style="display:none"></div>
+    <div class="tf-row" id="tf-row" style="display:none">
+      <button class="tf-btn tf-true" id="tf-true" onclick="G.answerTF(true)">✅ صح</button>
+      <button class="tf-btn tf-false" id="tf-false" onclick="G.answerTF(false)">❌ خطأ</button>
+    </div>
+    <div class="open-btns" id="open-btns" style="display:none">
+      <button class="open-correct" onclick="G.answerOpen(true)">✅ أجاب صح</button>
+      <button class="open-wrong" onclick="G.answerOpen(false)">❌ أجاب غلط</button>
+    </div>
+
+    <!-- Joker -->
+    <button class="btn-joker" id="joker-btn" style="display:none" onclick="G.useJoker()">🃏 استخدم الجوكر (حذف خيارين)</button>
+
+    <!-- Actions -->
+    <div class="action-row" id="action-row">
+      <button class="btn-pass" id="btn-pass" onclick="G.pass()">⏩ تخطى</button>
+      <button class="btn-next" id="btn-next" onclick="G.nextQ()" style="display:none">التالي ▶️</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TIME UP ═══════════════ -->
+<div id="pg-timeup" class="page">
+<div class="wrap">
+  <div class="page-header" style="padding-top:30px">
+    <h2 id="timeup-title">⏰ انتهت الجولة</h2>
+  </div>
+  <div class="timeup-box">
+    <span class="timeup-emoji" id="timeup-emoji">⏰</span>
+    <div class="timeup-title" id="timeup-player-name"></div>
+    <div class="timeup-pts" id="timeup-pts"></div>
+    <div class="timeup-detail" id="timeup-detail"></div>
+  </div>
+  <div class="duel-winner-box" id="duel-winner-box" style="display:none">
+    <div class="duel-winner-title">🏆 يتقدم للدور التالي</div>
+    <div class="duel-winner-name" id="duel-winner-name"></div>
+    <div style="font-size:.75rem;color:var(--muted);margin-top:6px" id="duel-scores"></div>
+  </div>
+  <div class="lb-card" id="lb-card">
+    <div class="lb-title">📊 الترتيب الحالي</div>
+    <div id="lb-rows"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-fire" id="next-round-btn" onclick="G.nextRound()">▶️ الدور التالي</button>
+    <button class="btn-ghost" onclick="G.endGame()">🏁 النتائج النهائية</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ RESULTS ═══════════════ -->
+<div id="pg-results" class="page">
+<div class="wrap">
+  <div style="padding-top: 30px"></div>
+  <div class="winner-banner">
+    <span class="winner-crown">👑</span>
+    <span class="winner-av" id="win-av">🏆</span>
+    <div class="winner-name" id="win-name"></div>
+    <div class="winner-sub" id="win-sub"></div>
+  </div>
+  <div class="results-list" id="results-list"></div>
+  <div class="btn-row">
+    <button class="btn-fire" onclick="G.newGame()">🔄 جولة جديدة</button>
+    <button class="btn-ghost" onclick="G.go('pg-splash')">🏠 الرئيسية</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ REPORT ═══════════════ -->
+<div id="pg-report" class="page">
+<div class="wrap" style="padding-top:20px">
+  <div class="report-header">
+    <div style="font-size:2rem;margin-bottom:6px">📊</div>
+    <div style="font-size:1.3rem;font-weight:900;color:var(--gold)" id="rep-title">تقرير المباراة</div>
+    <div style="font-size:.75rem;color:var(--muted);margin-top:4px" id="rep-meta"></div>
+  </div>
+
+  <div class="report-stat-grid" id="rep-stats"></div>
+
+  <div style="font-size:.8rem;font-weight:900;color:var(--muted);margin-bottom:10px">🏆 ترتيب اللاعبين</div>
+  <div id="rep-players" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+  <div style="font-size:.8rem;font-weight:900;color:var(--muted);margin-bottom:10px">📋 تفاصيل الجولات</div>
+  <div id="rep-rounds" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px"></div>
+
+  <div class="btn-row no-print">
+    <button class="btn-fire" onclick="window.print()">🖨️ طباعة التقرير</button>
+    <button class="btn-ghost" id="rep-back-btn" onclick="G.afterReport()">↩ العودة للغرفة</button>
+    <button class="btn-ghost" onclick="G.go('pg-splash')">🏠 الرئيسية</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ STORE ═══════════════ -->
+<div id="pg-store" class="page">
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0 12px">
+    <div style="font-size:1.3rem;font-weight:900;color:var(--gold)">🛒 متجر الأسئلة</div>
+    <button class="btn-back" onclick="G.go('pg-admin')">← رجوع</button>
+  </div>
+  <div style="font-size:.8rem;color:var(--muted);margin-bottom:18px;line-height:1.7">
+    اختر مجموعة أسئلة وحمّلها مباشرة — تحتاج اتصال بالإنترنت
+  </div>
+
+  <div id="store-grid" style="display:flex;flex-direction:column;gap:12px"></div>
+</div>
+</div>
+
+<!-- Countdown overlay -->
+
+<div class="countdown-overlay" id="countdown-overlay">
+  <div class="countdown-player" id="countdown-player"></div>
+  <div class="countdown-num" id="countdown-num">3</div>
+</div>
+
+<!-- Chain pop -->
+<div class="chain-pop" id="chain-pop">🔥 سلسلة!</div>
+
+<script>
+// ══════════════════════════════════════════
+//  QUESTIONS DATABASE
+// ══════════════════════════════════════════
+const QDB = {
+general:{
+easy:[
+{q:"ما هي عاصمة المملكة العربية السعودية؟",o:["الرياض","جدة","مكة","المدينة"],a:0},
+{q:"كم عدد أيام الأسبوع؟",o:["5","6","7","8"],a:2},
+{q:"ما هو أكبر كوكب في المجموعة الشمسية؟",o:["زحل","المشتري","أورانوس","نبتون"],a:1},
+{q:"ما هي عاصمة مصر؟",o:["الإسكندرية","القاهرة","الجيزة","الأقصر"],a:1},
+{q:"ما هو أطول نهر في العالم؟",o:["الأمازون","الكونغو","النيل","المسيسيبي"],a:2},
+{q:"ما هي اللغة الأكثر انتشاراً في العالم من حيث المتحدثين؟",o:["العربية","الإنجليزية","الإسبانية","الصينية"],a:3},
+{q:"ما هو أكبر حيوان في العالم؟",o:["الفيل","الحوت الأزرق","الزرافة","القرش"],a:1},
+{q:"كم عدد أوجه المكعب؟",o:["4","6","8","12"],a:1},
+{q:"ما هي عاصمة فرنسا؟",o:["برلين","مدريد","باريس","روما"],a:2},
+{q:"ما هو أسرع حيوان بري في العالم؟",o:["الأسد","الفهد","الحصان","النمر"],a:1},
+{q:"ما هي عاصمة الإمارات العربية المتحدة؟",o:["دبي","الشارقة","أبوظبي","العين"],a:2},
+{q:"ما هو أكبر بلد في العالم من حيث المساحة؟",o:["الصين","الولايات المتحدة","كندا","روسيا"],a:3},
+{q:"ما هي عاصمة اليابان؟",o:["أوساكا","طوكيو","كيوتو","هيروشيما"],a:1},
+{q:"كم عدد القارات في العالم؟",o:["5","6","7","8"],a:2},
+{q:"ما هي عاصمة تركيا؟",o:["إسطنبول","أنقرة","إزمير","بورصة"],a:1},
+{q:"ما هو أصغر دولة في العالم؟",o:["موناكو","سان مارينو","الفاتيكان","ليختنشتاين"],a:2},
+{q:"ما هي عاصمة البرازيل؟",o:["ريو دي جانيرو","ساو باولو","برازيليا","سلفادور"],a:2},
+{q:"كم يساوي الكيلومتر من الأمتار؟",o:["100","500","1000","10000"],a:2},
+{q:"ما هي عاصمة إسبانيا؟",o:["برشلونة","مدريد","إشبيلية","فالنسيا"],a:1},
+{q:"ما هي عاصمة ألمانيا؟",o:["ميونيخ","هامبورغ","برلين","فرانكفورت"],a:2},
+{q:"ما هو أكبر بلد عربي من حيث المساحة؟",o:["السعودية","الجزائر","ليبيا","السودان"],a:1},
+{q:"ما هي عاصمة كندا؟",o:["تورنتو","فانكوفر","مونتريال","أوتاوا"],a:3},
+{q:"ما هو أكبر محيط في العالم؟",o:["الأطلسي","الهندي","الهادئ","المتجمد"],a:2},
+{q:"ما هي عاصمة الهند؟",o:["مومباي","كولكاتا","نيودلهي","بنغالور"],a:2},
+{q:"ما هو أقرب كوكب للشمس؟",o:["الزهرة","عطارد","المريخ","الأرض"],a:1}
+],
+med:[
+{q:"الأرض تدور حول نفسها من الغرب إلى الشرق",a:true},
+{q:"المحيط الأطلسي أكبر من المحيط الهادئ",a:false},
+{q:"عاصمة أستراليا هي سيدني",a:false},
+{q:"اللغة العربية تُكتب من اليمين إلى اليسار",a:true},
+{q:"باريس عاصمة ألمانيا",a:false},
+{q:"الشمس نجم لا كوكب",a:true},
+{q:"روسيا أكبر دول العالم مساحةً",a:true},
+{q:"عدد دول العالم يتجاوز 190 دولة",a:true},
+{q:"البحر الأحمر يقع بين أفريقيا وآسيا",a:true},
+{q:"قطر تمتلك أكبر احتياطي غاز طبيعي في العالم",a:false}
+],
+hard:[
+{q:"ما اسم أعمق نقطة في المحيطات؟",a:"هاوية ماريانا"},
+{q:"ما الفارق الزمني بين توقيت جرينتش ومكة المكرمة؟",a:"3 ساعات"},
+{q:"ما هو المحيط الواقع بين أفريقيا وأمريكا الجنوبية؟",a:"المحيط الأطلسي"},
+{q:"كم تبلغ سرعة الضوء تقريباً؟",a:"300,000 كيلومتر في الثانية"},
+{q:"من أول رئيس لجنوب أفريقيا بعد نهاية الفصل العنصري؟",a:"نيلسون مانديلا"}
+]
+},
+science:{
+easy:[
+{q:"ما هو الغاز الذي يستنشقه الإنسان؟",o:["ثاني أكسيد الكربون","النيتروجين","الأكسجين","الهيدروجين"],a:2},
+{q:"ما هو أصلب مادة طبيعية في الطبيعة؟",o:["الحديد","الذهب","الماس","الجرانيت"],a:2},
+{q:"ما هو الكوكب الأحمر؟",o:["الزهرة","عطارد","المريخ","المشتري"],a:2},
+{q:"ما هو رمز الذهب في الجدول الدوري؟",o:["Go","Gd","Au","Ag"],a:2},
+{q:"ما هي عملية تحويل الطاقة الشمسية لغذاء في النباتات؟",o:["التنفس","البناء الضوئي","الهضم","التمثيل الغذائي"],a:1},
+{q:"كم درجة يساوي الصفر المئوي بالفهرنهايت؟",o:["0","16","32","50"],a:2},
+{q:"ما هو أصغر كوكب في المجموعة الشمسية؟",o:["المريخ","الزهرة","بلوتو","عطارد"],a:3},
+{q:"ما هو الجهاز الذي يضخ الدم في جسم الإنسان؟",o:["الرئة","الكبد","القلب","الكلية"],a:2},
+{q:"ما هو رمز الماء كيميائياً؟",o:["HO","H2O","OH2","H3O"],a:1},
+{q:"ما هو أكبر عضو في جسم الإنسان؟",o:["القلب","الكبد","الجلد","الدماغ"],a:2},
+{q:"ما هو رمز الحديد في الجدول الدوري؟",o:["Ir","Fe","Fr","In"],a:1},
+{q:"ما هي درجة غليان الماء تحت ضغط طبيعي؟",o:["80°م","90°م","100°م","110°م"],a:2},
+{q:"ما هو عدد أسنان الإنسان البالغ الطبيعية؟",o:["28","30","32","34"],a:2},
+{q:"ما هو الغاز الأكثر وفرة في الغلاف الجوي؟",o:["الأكسجين","النيتروجين","ثاني أكسيد الكربون","الهيدروجين"],a:1},
+{q:"ما هو رمز الكربون في الجدول الدوري؟",o:["Ca","K","C","Co"],a:2}
+],
+med:[
+{q:"الإنسان يستخدم 10% فقط من دماغه",a:false},
+{q:"الصوت ينتقل في الفراغ",a:false},
+{q:"الشمس أقرب نجم إلى الأرض",a:true},
+{q:"الدم الأحمر يحمل الأكسجين",a:true},
+{q:"الإلكترونات تحمل شحنة موجبة",a:false},
+{q:"الصوت أسرع من الضوء",a:false},
+{q:"الجاذبية على القمر أقل من جاذبية الأرض",a:true},
+{q:"DNA اختصار لـ Deoxyribonucleic Acid",a:true},
+{q:"الضوء الأبيض مزيج من ألوان مختلفة",a:true},
+{q:"المضادات الحيوية تقتل الفيروسات",a:false}
+],
+hard:[
+{q:"ما اسم العالم الذي اكتشف البنسلين؟",a:"ألكسندر فلمنج"},
+{q:"ما هو أخف عنصر في الجدول الدوري؟",a:"الهيدروجين"},
+{q:"ما هي الحالة الرابعة للمادة بعد الصلبة والسائلة والغازية؟",a:"البلازما"},
+{q:"ما اسم العالم الذي وضع نظرية النسبية؟",a:"ألبرت أينشتاين"},
+{q:"كم عدد العناصر في الجدول الدوري؟",a:"118 عنصراً"}
+]
+},
+history:{
+easy:[
+{q:"من هو أول رئيس للولايات المتحدة الأمريكية؟",o:["توماس جيفرسون","إبراهيم لينكولن","جورج واشنطن","بنجامين فرانكلين"],a:2},
+{q:"في أي عام بدأت الحرب العالمية الثانية؟",o:["1914","1939","1945","1950"],a:1},
+{q:"من هو الفاتح الذي فتح القسطنطينية؟",o:["السلطان سليمان","السلطان محمد الفاتح","صلاح الدين","عمر بن الخطاب"],a:1},
+{q:"في أي سنة تأسست الإمارات العربية المتحدة؟",o:["1960","1965","1971","1975"],a:2},
+{q:"ما هو اسم أول إنسان مشى على سطح القمر؟",o:["باز ألدرين","يوري غاغارين","نيل أرمسترونغ","جون غلين"],a:2},
+{q:"في أي سنة اكتشف كريستوف كولومبوس أمريكا؟",o:["1400","1492","1500","1600"],a:1},
+{q:"من هو مؤسس الدولة السعودية الحديثة؟",o:["الملك سلمان","الملك فهد","الملك عبدالله","الملك عبدالعزيز"],a:3},
+{q:"في أي سنة انتهت الحرب العالمية الأولى؟",o:["1914","1916","1918","1920"],a:2},
+{q:"أين وُلد النبي محمد صلى الله عليه وسلم؟",o:["المدينة المنورة","مكة المكرمة","الطائف","اليمن"],a:1},
+{q:"في أي سنة قامت الثورة الفرنسية؟",o:["1689","1789","1889","1989"],a:1},
+{q:"من بنى الأهرامات في مصر؟",o:["الرومان","الفراعنة","العرب","الإغريق"],a:1},
+{q:"ما هو اسم الرحالة العربي الشهير الذي طاف العالم؟",o:["ابن بطوطة","ابن خلدون","الإدريسي","ابن سينا"],a:0},
+{q:"في أي سنة انتهت الحرب الباردة؟",o:["1985","1989","1991","1995"],a:2},
+{q:"من هو الفيلسوف الذي كان أستاذاً للإسكندر الأكبر؟",o:["سقراط","أفلاطون","أرسطو","فيثاغورس"],a:2},
+{q:"ما اسم أشهر معركة في تاريخ الإسلام المبكر؟",o:["معركة الموعد","معركة بدر","معركة الجمل","معركة صفين"],a:1}
+],
+med:[
+{q:"أبو الفلسفة الغربية هو أرسطو",a:false},
+{q:"الإسكندر الأكبر وصل إلى الهند",a:true},
+{q:"الدولة العثمانية سقطت في الحرب العالمية الثانية",a:false},
+{q:"نيلسون مانديلا قضى 27 سنة في السجن",a:true},
+{q:"صلاح الدين الأيوبي حرر القدس من الصليبيين",a:true},
+{q:"الحرب العالمية الأولى بدأت باغتيال أرشيدوق نمساوي",a:true},
+{q:"الإمبراطورية الرومانية الغربية سقطت عام 476م",a:true},
+{q:"الفينيقيون هم أول من اخترع الأبجدية",a:true},
+{q:"غاندي لجأ إلى العنف لتحرير الهند",a:false},
+{q:"كانت روما أول حضارة في التاريخ",a:false}
+],
+hard:[
+{q:"في أي مدينة وُقّعت معاهدة فرساي التي أنهت الحرب العالمية الأولى؟",a:"باريس / فرساي"},
+{q:"ما اسم المعركة الفاصلة التي هزم فيها صلاح الدين الصليبيين؟",a:"معركة حطين"},
+{q:"في أي عام فتح العرب الأندلس؟",a:"711 ميلادي"},
+{q:"من هو الفيلسوف المسلم الملقب بالمعلم الثاني؟",a:"الفارابي"},
+{q:"ما اسم آخر سلطان عثماني؟",a:"محمد السادس / وحيد الدين"}
+]
+},
+sports:{
+easy:[
+{q:"كم عدد لاعبي فريق كرة القدم؟",o:["9","10","11","12"],a:2},
+{q:"كم عدد أشواط مباراة كرة القدم؟",o:["1","2","3","4"],a:1},
+{q:"ما هو الفريق الإسباني الشهير باللون الأبيض؟",o:["برشلونة","أتلتيكو مدريد","ريال مدريد","فالنسيا"],a:2},
+{q:"كم مرة فازت البرازيل بكأس العالم؟",o:["3","4","5","6"],a:2},
+{q:"من هو الهداف التاريخي الأعلى في كرة القدم؟",o:["ميسي","رونالدو","بيليه","مارادونا"],a:1},
+{q:"ما هو أسرع رياضي على الإطلاق في الجري 100م؟",o:["كارل لويس","أوساين بولت","تايسون غاي","يوهان بليك"],a:1},
+{q:"كم عدد اللاعبين في فريق كرة السلة؟",o:["4","5","6","7"],a:1},
+{q:"في أي دولة أقيمت كأس العالم 2022؟",o:["السعودية","الإمارات","قطر","البحرين"],a:2},
+{q:"ما هي الرياضة التي يُستخدم فيها المضرب والريشة؟",o:["التنس","البادمنتون","الاسكواش","البينغ بونغ"],a:1},
+{q:"ما اسم بطولة التنس على الأرض الحمراء الأشهر؟",o:["ويمبلدون","رولان غاروس","أستراليان أوبن","يو إس أوبن"],a:1},
+{q:"ما هي رياضة محمد صلاح؟",o:["تنس","كرة السلة","كرة القدم","كرة اليد"],a:2},
+{q:"في أي مدينة أقيمت الألعاب الأولمبية الأولى الحديثة؟",o:["لندن","باريس","أثينا","روما"],a:2},
+{q:"كم نقطة تساوي الرمية خلف قوس الثلاثة في كرة السلة؟",o:["1","2","3","4"],a:2},
+{q:"ما هو ملعب ريال مدريد؟",o:["الكامب نو","سانتياغو برنابيو","الأولمبيك","مزار"],a:1},
+{q:"الأولمبياد الصيفية تُقام كل كم سنة؟",o:["2","3","4","5"],a:2}
+],
+med:[
+{q:"ريال مدريد أكثر الأندية تتويجاً بدوري أبطال أوروبا",a:true},
+{q:"البرازيل الدولة الوحيدة المشاركة في جميع نسخ كأس العالم",a:true},
+{q:"كرة القدم اخترعها الإنجليز",a:true},
+{q:"ألمانيا فازت بكأس العالم 2014",a:true},
+{q:"الولايات المتحدة فازت بكأس العالم مرة واحدة",a:false},
+{q:"اليابان فازت ببطولة كأس العالم للسيدات",a:true},
+{q:"في كرة القدم يمكن أن تنتهي المباراة 0-0",a:true},
+{q:"الماراثون سباق 42 كيلومتراً",a:true},
+{q:"فيلق الفرسان يلعبون البولو على الخيول",a:true},
+{q:"لاعبو الغولف يسعون لأقل عدد من الضربات",a:true}
+],
+hard:[
+{q:"ما الرقم القياسي العالمي في سباق 100م للرجال؟",a:"9.58 ثانية لأوساين بولت"},
+{q:"ما اسم جائزة أفضل لاعب كرة قدم السنوية؟",a:"الكرة الذهبية"},
+{q:"كم مرة فازت الأرجنتين بكأس العالم؟",a:"3 مرات"},
+{q:"ما اسم النادي الأهلي المصري بالكامل؟",a:"النادي الأهلي المصري"},
+{q:"ما هو اسم بطولة أوروبا الكبرى للأندية؟",a:"دوري أبطال أوروبا"}
+]
+},
+religion:{
+easy:[
+{q:"كم عدد أركان الإسلام؟",o:["3","4","5","6"],a:2},
+{q:"كم عدد الصلوات المفروضة في اليوم؟",o:["3","4","5","6"],a:2},
+{q:"ما هو أول ركن من أركان الإسلام؟",o:["الصلاة","الصوم","الشهادتان","الزكاة"],a:2},
+{q:"في أي شهر يصوم المسلمون؟",o:["شعبان","رجب","رمضان","ذو الحجة"],a:2},
+{q:"ما هي القبلة في الصلاة الإسلامية؟",o:["بيت المقدس","الكعبة المشرفة","المدينة المنورة","جبل عرفات"],a:1},
+{q:"كم عدد سور القرآن الكريم؟",o:["99","100","114","120"],a:2},
+{q:"ما هو اسم أول سورة في القرآن الكريم؟",o:["البقرة","الفاتحة","الناس","الكوثر"],a:1},
+{q:"ما هو اسم آخر نبي في الإسلام؟",o:["عيسى","موسى","محمد","إبراهيم"],a:2},
+{q:"ما هو مقدار الزكاة على المال؟",o:["2.5%","5%","10%","20%"],a:0},
+{q:"ما هو اسم النبي الذي بنى سفينة نجاةً من الطوفان؟",o:["إبراهيم","موسى","نوح","يونس"],a:2},
+{q:"كم عدد ركعات صلاة الظهر؟",o:["2","3","4","5"],a:2},
+{q:"ما هو اسم زوجة النبي محمد الأولى؟",o:["عائشة","فاطمة","خديجة","زينب"],a:2},
+{q:"في أي سنة هاجر النبي محمد من مكة إلى المدينة؟",o:["610م","615م","622م","630م"],a:2},
+{q:"ما هو اسم الكتاب المقدس للمسيحيين؟",o:["القرآن","التوراة","الإنجيل","الزبور"],a:2},
+{q:"كم عدد آيات سورة الفاتحة؟",o:["5","6","7","8"],a:2}
+],
+med:[
+{q:"صوم رمضان ركن من أركان الإسلام",a:true},
+{q:"القرآن الكريم نزل دفعة واحدة",a:false},
+{q:"النبي محمد وُلد في المدينة المنورة",a:false},
+{q:"زكاة المال تجب على الغني والفقير",a:false},
+{q:"الحج فريضة على كل مسلم مستطيع مرة في العمر",a:true},
+{q:"مكة المكرمة أقدس مدينة في الإسلام",a:true},
+{q:"سورة البقرة هي أطول سورة في القرآن",a:true},
+{q:"الوضوء شرط لصحة الصلاة",a:true},
+{q:"النبي موسى أُرسل إلى بني إسرائيل",a:true},
+{q:"ذو الحجة هو شهر الصوم الإسلامي",a:false}
+],
+hard:[
+{q:"ما اسم الليلة التي نزل فيها القرآن الكريم؟",a:"ليلة القدر"},
+{q:"في أي غزوة حُفر الخندق للدفاع عن المدينة؟",a:"غزوة الخندق / الأحزاب"},
+{q:"ما هو اسم الصحابي الملقب بذو النورين؟",a:"عثمان بن عفان"},
+{q:"ما هو اسم الجبل الذي نزل عليه الوحي لأول مرة؟",a:"جبل حراء"},
+{q:"ما معنى كلمة إسلام لغوياً؟",a:"الاستسلام والانقياد لله"}
+]
+},
+fun:{
+easy:[
+{q:"ما هو الطعام الذي تصنعه النحل؟",o:["الحليب","العسل","السكر","الزيت"],a:1},
+{q:"كم ساقاً للأخطبوط؟",o:["4","6","8","10"],a:2},
+{q:"ما هو الحيوان الذي يصدر صوت المواء؟",o:["الكلب","القطة","الأرنب","الأسد"],a:1},
+{q:"ما هو الطعام الذي لا يفسد أبداً؟",o:["الملح","العسل","الخل","كلها صحيحة"],a:3},
+{q:"ما هو لون لسان الزرافة؟",o:["وردي","رمادي","أزرق بنفسجي","أحمر"],a:2},
+{q:"كم يبلغ طول لسان الزرافة تقريباً؟",o:["20سم","30سم","45سم","60سم"],a:2},
+{q:"أي حيوان لديه بصمة مشابهة لبصمة الإنسان؟",o:["الشمبانزي","الكوالا","الفيل","كلاهما"],a:3},
+{q:"ما هو المشروب الأكثر استهلاكاً في العالم بعد الماء؟",o:["العصير","الشاي","القهوة","الحليب"],a:1},
+{q:"من أين يأتي الشوكولاتة أصلاً؟",o:["أوروبا","أمريكا الوسطى","أفريقيا","آسيا"],a:1},
+{q:"ما هو الحيوان الأكثر صبراً على العطش؟",o:["الجمل","الجربوع","الضبة","الكنغر"],a:0},
+{q:"ما هو الحيوان الذي لديه ثلاثة قلوب؟",o:["الدلفين","الأخطبوط","القرش","النجم البحري"],a:1},
+{q:"ما هي الفاكهة التي تحتوي على إنزيم يحل البروتين؟",o:["الليمون","المانجو","الأناناس","البطيخ"],a:2},
+{q:"ما هو الكيميائي المسبب للحرارة في الفلفل الحار؟",o:["البروتين","الكابسيسين","التانين","الليمونين"],a:1},
+{q:"كم عدد أسنان الحلزون تقريباً؟",o:["لا أسنان","100","14000","1000"],a:2},
+{q:"ما هي الفاكهة الوحيدة التي بذورها في الخارج؟",o:["التفاح","الفراولة","الموز","العنب"],a:1}
+],
+med:[
+{q:"الكيوي يمكنه الطيران",a:false},
+{q:"لحم الأخطبوط الأزرق الحلقات أشد سمية من الكوبرا",a:true},
+{q:"الحلزون يمكن أن ينام لمدة ثلاث سنوات",a:true},
+{q:"النعامة تدفن رأسها في الرمال عند الخوف",a:false},
+{q:"العسل لا يفسد أبداً",a:true},
+{q:"الأفيال تخاف من الفئران",a:false},
+{q:"الطماطم من الناحية العلمية فاكهة وليست خضراواً",a:true},
+{q:"الزرافة لها 7 فقرات في رقبتها كالإنسان",a:true},
+{q:"الفيل هو الحيوان الوحيد الذي لا يستطيع القفز",a:true},
+{q:"القطط ترى في الظلام بشكل أفضل من الإنسان",a:true}
+],
+hard:[
+{q:"ما هو اسم الحيوان الذي يمتلك ثلاثة قلوب؟",a:"الأخطبوط"},
+{q:"ما هو الطعام الذي أكله أول رائد فضاء في الفضاء؟",a:"معجون اللحم في أنبوب (يوري غاغارين)"},
+{q:"ما هو الفاكهة التي تحتوي على إنزيم يحل البروتين؟",a:"الأناناس"},
+{q:"ما هو أكثر حيوان مميت في العالم؟",a:"البعوضة"},
+{q:"ما اسم الظاهرة التي تختفي فيها الحيوانات في الشتاء؟",a:"السبات الشتوي"}
+]
+},
+food:{
+easy:[
+{q:"من أي بلد تأتي البيتزا أصلاً؟",o:["فرنسا","إيطاليا","اليونان","إسبانيا"],a:1},
+{q:"ما هو الخضار الذي يجعلك تبكي عند تقطيعه؟",o:["الثوم","الفلفل","البصل","الخيار"],a:2},
+{q:"من أي نبات يُصنع الشوكولاتة؟",o:["الفانيلا","الكاكاو","القهوة","القرفة"],a:1},
+{q:"ما هو المشروب الوطني في السعودية؟",o:["القهوة العربية","الشاهي","لبن الإبل","العصير"],a:0},
+{q:"ما هو أغلى بهار في العالم؟",o:["الكمون","القرفة","الهيل","الزعفران"],a:3},
+{q:"من أي بلد يأتي الكباب أصلاً؟",o:["المغرب","إيران / تركيا","اليونان","أفغانستان"],a:1},
+{q:"ما هو الطبق المصري المصنوع من الفول؟",o:["الكوشري","الفول المدمس","المحشي","الملوخية"],a:1},
+{q:"ما هي الفاكهة الأكثر استهلاكاً في العالم؟",o:["التفاح","البرتقال","الموز","العنب"],a:2},
+{q:"ما هو الحبوب الذي يُصنع منه الخبز عادة؟",o:["الأرز","القمح","الذرة","الشعير"],a:1},
+{q:"من أي مادة يُصنع التوفو؟",o:["الحليب البقري","البيض","فول الصويا","القمح"],a:2},
+{q:"ما هي الفاكهة التي تحتوي على أعلى نسبة سكر طبيعي؟",o:["التمر","العنب","المانجو","الليتشي"],a:0},
+{q:"ما هو الخبز الهندي المسطح الشهير؟",o:["الناان","البيتا","التورتيلا","اللافاش"],a:0},
+{q:"ما هي طريقة الطهي اليابانية التقليدية للأسماك؟",o:["القلي","التبخير","السوشي / النيء","الشواء"],a:2},
+{q:"ما هو الطحين المستخدم في صنع الباستا الإيطالية؟",o:["دقيق الأرز","السميد / القمح القاسي","دقيق الشوفان","دقيق الذرة"],a:1},
+{q:"ما هي الحلوى العربية المصنوعة من السميد؟",o:["الكنافة","البسبوسة","القطايف","الأم علي"],a:1}
+],
+med:[
+{q:"الموز تقنياً نبات عشبي وليس شجرة",a:true},
+{q:"الشاي يأتي من نفس نبتة القهوة",a:false},
+{q:"الإفراط في أكل الجزر يحوّل لون الجلد للبرتقالي",a:true},
+{q:"الطماطم والخيار والأفوكادو فواكه علمياً",a:true},
+{q:"الزبدة أصحى من زيت الزيتون",a:false},
+{q:"الفلفل الحلو والحار من نفس النوع النباتي",a:true},
+{q:"الكاكاو يحتوي على مواد مضادة للاكتئاب",a:true},
+{q:"بذور الشيا تتضاعف حجمها عند نقعها في الماء",a:true},
+{q:"التفاح يحتوي على نفس نسبة الكافيين في القهوة",a:false},
+{q:"البرتقالة سُميت باسم لونها وليس العكس",a:false}
+],
+hard:[
+{q:"ما هو اسم الطعام الياباني المصنوع من فول الصويا المخمر؟",a:"ناتو Natto"},
+{q:"من أي بلد يأتي طبق الفلافل في أصله؟",a:"مصر / الشرق الأوسط"},
+{q:"ما هو اسم طبق كوريا من الخضار المخمرة؟",a:"كيمتشي Kimchi"},
+{q:"ما هو البهار المستخرج من قلف شجرة معينة؟",a:"القرفة"},
+{q:"ما هو الفرق بين البيستو والبولونيز؟",a:"البيستو صلصة ريحان خضراء، والبولونيز صلصة لحم مفروم"}
+]
+},
+animals:{
+easy:[
+{q:"ما هو أكبر حيوان بري في العالم؟",o:["الفيل الأفريقي","وحيد القرن","البيسون","الزرافة"],a:0},
+{q:"ما هو الحيوان الأسرع في العالم؟",o:["الأسد","النمر","الفهد","الحصان"],a:2},
+{q:"كم عدد أرجل العنكبوت؟",o:["4","6","8","10"],a:2},
+{q:"ما هو أطول حيوان في العالم؟",o:["الفيل","الزرافة","الحوت الأزرق","الأفعى"],a:1},
+{q:"ما هو الطائر الأكبر في العالم؟",o:["الأوز","النعامة","النسر","الطاووس"],a:1},
+{q:"كم عدد أرجل الحشرات؟",o:["4","6","8","10"],a:1},
+{q:"ما هو الحيوان الذي يُعتبر رمزاً للصين؟",o:["التنين","الباندا","الدب","النمر"],a:1},
+{q:"ما هو الحيوان الذي يحمل صغاره في كيس على بطنها؟",o:["الدب","الكنغر","الذئب","الفيل"],a:1},
+{q:"ما هو الحيوان الذي يُعتبر أذكى حيوان بعد الإنسان؟",o:["الدلفين","القرد","الفيل","الكلب"],a:0},
+{q:"ما هو الحيوان الوحيد الذي لا يستطيع القفز؟",o:["الحصان","البقرة","الفيل","الإبل"],a:2},
+{q:"كم سنة يعيش السلحفاء في المتوسط؟",o:["20-30","50-60","80-100","100-150"],a:3},
+{q:"ما هو الحيوان الذي يبني السدود؟",o:["القندس","الحصان","الفأر","الضفدع"],a:0},
+{q:"ما هو الطائر الذي لا يستطيع الطيران؟",o:["الحمام","البطريق","الصقر","البومة"],a:1},
+{q:"ما هو الحيوان الذي يتغير لونه؟",o:["الحرباء","القرد","الضفدع","السمكة"],a:0},
+{q:"ما هو الثدي البحري الذي يتواصل بأغاني؟",o:["الدلفين","الحوت","القرش","الفقمة"],a:1}
+],
+med:[
+{q:"البطريق يقطن في القطب الشمالي",a:false},
+{q:"الكوالا ليس دباً حقيقياً",a:true},
+{q:"الأخطبوط يمكنه تغيير لونه",a:true},
+{q:"الأفعى لا تسمع بالأذن",a:true},
+{q:"السلمون يعود لمكان ولادته للتكاثر",a:true},
+{q:"النحلة تموت بعد لسعتها مباشرة",a:true},
+{q:"الوطواط يرى بعينيه بشكل ممتاز",a:false},
+{q:"الدلفين ينام بنصف دماغه فقط",a:true},
+{q:"قنديل البحر ليس له دماغ ولا قلب",a:true},
+{q:"الأسد الذكر هو الذي يصيد الطعام لقطيعه",a:false}
+],
+hard:[
+{q:"ما هو اسم الحيوان الذي يمكنه إعادة إنبات أعضائه؟",a:"نجم البحر"},
+{q:"ما هو أكثر حيوان مميت في العالم؟",a:"البعوضة"},
+{q:"ما اسم أكبر بيضة في العالم لحيوان حي؟",a:"بيضة النعامة"},
+{q:"ما اسم الظاهرة التي تختفي فيها الحيوانات في الشتاء؟",a:"السبات الشتوي"},
+{q:"ما هو الحيوان الوحيد الذي يستطيع تذكر بشرة الإنسان بصورة دقيقة؟",a:"الفيل"}
+]
+},
+tech:{
+easy:[
+{q:"ما اختصار CPU؟",o:["وحدة التخزين","وحدة المعالجة المركزية","وحدة الإدخال","شاشة العرض"],a:1},
+{q:"ما هو متصفح الإنترنت الأشهر في العالم؟",o:["فايرفوكس","سفاري","إيدج","كروم"],a:3},
+{q:"من أسس شركة آبل؟",o:["بيل غيتس","ستيف جوبز وشركاؤه","إيلون ماسك","مارك زوكربيرغ"],a:1},
+{q:"ما هو موقع التواصل الاجتماعي الأكثر استخداماً؟",o:["تويتر","إنستغرام","فيسبوك","يوتيوب"],a:2},
+{q:"من أسس شركة مايكروسوفت؟",o:["ستيف جوبز","مارك زوكربيرغ","بيل غيتس","جيف بيزوس"],a:2},
+{q:"ما هو تطبيق التواصل الأكثر استخداماً في العالم؟",o:["تيليغرام","سناب شات","واتساب","سيغنال"],a:2},
+{q:"ما معنى HTTP؟",o:["بروتوكول النص التشعبي","بروتوكول نقل الملفات","بروتوكول الأمان","بروتوكول الشبكة"],a:0},
+{q:"ما هو اختصار AI؟",o:["الذكاء الاصطناعي","الإنترنت الاصطناعي","الذكاء الآلي","أتمتة المعلومات"],a:0},
+{q:"كم بت في البايت الواحد؟",o:["4","8","16","32"],a:1},
+{q:"من أسس شركة أمازون؟",o:["إيلون ماسك","جيف بيزوس","بيل غيتس","لاري بيج"],a:1},
+{q:"ما هو الرمز المستخدم في عناوين البريد الإلكتروني؟",o:["#","@","$","%"],a:1},
+{q:"ما هو اختصار URL؟",o:["Universal Resource Locator","Uniform Resource Locator","United Resource Link","User Resource Locator"],a:1},
+{q:"ما هو أسرع جهاز تخزين حالياً؟",o:["HDD","CD","SSD","USB Flash"],a:2},
+{q:"ما هو نظام التشغيل مفتوح المصدر؟",o:["ويندوز","ماك","لينوكس","فري BSD"],a:2},
+{q:"ما هو الرقم الثنائي؟",o:["يستخدم أرقام 0-9","يستخدم 0 و1 فقط","يستخدم أحرف","يستخدم رموز"],a:1}
+],
+med:[
+{q:"Python لغة برمجة",a:true},
+{q:"HTML لغة برمجة",a:false},
+{q:"نظام الثنائي يستخدم الأرقام 0 و1 فقط",a:true},
+{q:"5G أبطأ من 4G",a:false},
+{q:"برامج الفدية نوع من الفيروسات",a:true},
+{q:"IPv6 يدعم عدداً أكبر من IPv4",a:true},
+{q:"Git برنامج لإدارة الإصدارات",a:true},
+{q:"الذكاء الاصطناعي يتعلم من البيانات",a:true},
+{q:"شبكة WiFi تعتمد على الأسلاك",a:false},
+{q:"البلوكتشين نوع من قواعد البيانات اللامركزية",a:true}
+],
+hard:[
+{q:"ما هو اختصار API؟",a:"Application Programming Interface"},
+{q:"من مخترع لغة Python؟",a:"جيدو فان روسوم"},
+{q:"ما هو عدد بتات عنوان IPv6؟",a:"128 بت"},
+{q:"ما هو الفرق بين RAM وROM؟",a:"RAM ذاكرة مؤقتة، ROM ذاكرة دائمة للقراءة فقط"},
+{q:"ما هو اسم أول فيروس حاسوبي رسمي؟",a:"Creeper"}
+]
+},
+geography:{
+easy:[
+{q:"ما هي أكبر دولة في العالم من حيث المساحة؟",o:["الصين","كندا","الولايات المتحدة","روسيا"],a:3},
+{q:"ما هو المحيط الذي يفصل أوروبا عن أمريكا؟",o:["الهادئ","الهندي","الأطلسي","المتجمد"],a:2},
+{q:"ما هو البحر الذي يقع بين أوروبا وأفريقيا؟",o:["البحر الأسود","البحر الأحمر","البحر الأبيض المتوسط","بحر قزوين"],a:2},
+{q:"ما هو اسم أكبر بحيرة في العالم؟",o:["بحيرة فيكتوريا","بحيرة سوبيريور","بحيرة تيتيكاكا","بحر قزوين"],a:3},
+{q:"ما هي أطول سلسلة جبلية في العالم؟",o:["الألب","الأورال","جبال روكي","جبال الأنديز"],a:3},
+{q:"في أي قارة يقع جبل كيليمنجارو؟",o:["آسيا","أمريكا الجنوبية","أفريقيا","أوروبا"],a:2},
+{q:"ما هي أصغر دولة في العالم؟",o:["موناكو","سان مارينو","الفاتيكان","نورو"],a:2},
+{q:"ما هو اسم الصحراء الكبرى في أفريقيا؟",o:["صحراء جوبي","صحراء كالاهاري","الصحراء الكبرى","صحراء أتاكاما"],a:2},
+{q:"ما هي عاصمة روسيا؟",o:["سان بطرسبرغ","نوفوسيبيرسك","موسكو","فلاديفوستوك"],a:2},
+{q:"ما هو أعمق بحيرة في العالم؟",o:["بحيرة تانغانيقا","بحيرة فيكتوريا","بحيرة بيكال","بحيرة تيتيكاكا"],a:2},
+{q:"ما هي أعلى عاصمة في العالم ارتفاعاً؟",o:["كابول","أديس أبابا","لاباز","كيتو"],a:2},
+{q:"ما هو اسم المضيق الذي يفصل آسيا وأمريكا؟",o:["مضيق جبل طارق","مضيق ملقا","مضيق بيرينغ","قناة السويس"],a:2},
+{q:"ما هو المحيط بين أفريقيا وآسيا وأستراليا؟",o:["الأطلسي","الهادئ","الهندي","المتجمد"],a:2},
+{q:"ما هو اسم المضيق بين آسيا وأفريقيا عند البحر الأحمر؟",o:["مضيق هرمز","باب المندب","مضيق بيرينغ","مضيق ملقا"],a:1},
+{q:"ما هي الدولة التي تمتلك أطول خط ساحلي في العالم؟",o:["روسيا","أستراليا","كندا","إندونيسيا"],a:2}
+],
+med:[
+{q:"أستراليا قارة ودولة في آن واحد",a:true},
+{q:"النيل يصب في البحر الأحمر",a:false},
+{q:"الجزائر أكبر دولة في أفريقيا مساحةً",a:true},
+{q:"ألاسكا ولاية أمريكية غير متصلة بالقارة الأمريكية",a:true},
+{q:"أوروبا وآسيا قارة واحدة تُعرف بأوراسيا",a:true},
+{q:"البحر الميت أعمق بحر في العالم",a:false},
+{q:"قطر شبه جزيرة",a:true},
+{q:"أفريقيا أكبر من أوروبا ثلاث مرات",a:true},
+{q:"البرازيل تشترك في الحدود مع كل دول أمريكا الجنوبية",a:false},
+{q:"المحيط الهادئ يحتوي على أكثر من نصف مياه المحيطات",a:true}
+],
+hard:[
+{q:"ما هو اسم أبعد نقطة من مركز الأرض على السطح؟",a:"جبل تشيمبورازو في الإكوادور"},
+{q:"في كم دولة يمر نهر الأمازون؟",a:"دولتان رئيسيتان: البيرو والبرازيل"},
+{q:"ما هو أعمق خندق في المحيط الهادئ؟",a:"هاوية ماريانا"},
+{q:"ما هو أطول حد بري بين دولتين في العالم؟",a:"الحد بين كندا والولايات المتحدة"},
+{q:"ما هي الدولة التي تمتد على قارتين؟",a:"تركيا / روسيا"}
+]
+},
+math:{
+easy:[
+{q:"كم يساوي 15 × 15؟",o:["205","220","225","230"],a:2},
+{q:"ما هو جذر 144؟",o:["10","11","12","13"],a:2},
+{q:"كم يساوي 1000 ÷ 25؟",o:["30","35","40","45"],a:2},
+{q:"كم تساوي 2 أس 10؟",o:["512","1024","2048","256"],a:1},
+{q:"ما هو العدد الأولي بين 10 و20؟",o:["12","14","17","18"],a:2},
+{q:"كم يساوي 7 × 8؟",o:["54","56","58","64"],a:1},
+{q:"ما هو ناتج جمع زوايا المثلث؟",o:["90","180","270","360"],a:1},
+{q:"ما هو أصغر عدد أولي؟",o:["1","2","3","5"],a:1},
+{q:"كم يساوي 25% من 200؟",o:["25","50","75","100"],a:1},
+{q:"كم يساوي 12²؟",o:["124","134","144","154"],a:2},
+{q:"ما هو ناتج 3!؟",o:["3","6","9","12"],a:1},
+{q:"ما هو ناتج √64؟",o:["6","7","8","9"],a:2},
+{q:"كم يساوي 30% من 150؟",o:["35","40","45","50"],a:2},
+{q:"ما هي نسبة قطر الدائرة إلى محيطها؟",o:["π","2π","π/2","1/π"],a:0},
+{q:"كم ضلعاً في المسدس؟",o:["5","6","7","8"],a:1}
+],
+med:[
+{q:"π يساوي تقريباً 3.14",a:true},
+{q:"العدد 1 عدد أولي",a:false},
+{q:"مجموع زوايا المضلع السداسي يساوي 720 درجة",a:true},
+{q:"أي عدد مرفوع للأس صفر يساوي 1",a:true},
+{q:"الأعداد الأولية كلها فردية",a:false},
+{q:"مستطيل المساحة يساوي الطول × العرض",a:true},
+{q:"ناتج ضرب عددين سالبين عدد موجب",a:true},
+{q:"3² + 4² = 5²",a:true},
+{q:"المتوسط الحسابي دائماً يقع بين أكبر وأصغر قيمة",a:true},
+{q:"قيمة sin(90°) تساوي 1",a:true}
+],
+hard:[
+{q:"ما هي نظرية فيثاغورس؟",a:"في المثلث القائم: أ² + ب² = ج²"},
+{q:"ما هو تعريف المشتقة في التفاضل؟",a:"معدل تغير الدالة اللحظي"},
+{q:"ما هي قيمة π بدقة خمسة أرقام؟",a:"3.14159"},
+{q:"ما هو الفرق بين الاحتمال والإحصاء؟",a:"الاحتمال يتوقع النتائج، الإحصاء يحلل بيانات موجودة"},
+{q:"ما هو الفرق بين المصفوفة والمحدد؟",a:"المصفوفة جدول أعداد، المحدد قيمة عددية منسوبة للمصفوفة"}
+]
+},
+movies:{
+easy:[
+{q:"من هو مخرج فيلم تيتانيك؟",o:["ستيفن سبيلبرغ","جيمس كاميرون","كريستوفر نولان","ريدلي سكوت"],a:1},
+{q:"من يؤدي دور الجوكر في The Dark Knight؟",o:["جوني ديب","جاريد ليتو","هيث ليدجر","خواكين فينيكس"],a:2},
+{q:"من يؤدي دور Iron Man؟",o:["كريس هيمسورث","كريس إيفانز","روبرت داوني جونيور","مارك رافالو"],a:2},
+{q:"ما هو اسم الراعي الخير في سلسلة Toy Story؟",o:["باز لايتير","وودي","ريكس","بولز آي"],a:1},
+{q:"من يؤدي دور شخصية جاك سبارو؟",o:["براد بيت","أورلاندو بلوم","جوني ديب","إيان ماكيلين"],a:2},
+{q:"في أي سنة صدر فيلم Star Wars الأول؟",o:["1972","1977","1980","1983"],a:1},
+{q:"من هو مخرج فيلم Schindler's List؟",o:["مارتن سكورسيزي","ستيفن سبيلبرغ","ستانلي كوبريك","وودي آلن"],a:1},
+{q:"ما هو اسم الأسد في فيلم The Lion King؟",o:["موفاسا","نالا","سيمبا","بومبا"],a:2},
+{q:"من يؤدي دور شخصية Thor؟",o:["كريس إيفانز","روبرت داوني جر","كريس هيمسورث","كريس برات"],a:2},
+{q:"من هو بطل سلسلة أفلام Indiana Jones؟",o:["توم هانكس","هاريسون فورد","مل غيبسون","سيلفستر ستالون"],a:1},
+{q:"ما هي شركة إنتاج أفلام Marvel الأخيرة؟",o:["Warner Bros","Universal","Disney/Marvel","Sony"],a:2},
+{q:"من يؤدي البطولة في سلسلة Hunger Games؟",o:["جنيفر لورانس","إيما ستون","ناتالي بورتمان","سكارليت جوهانسون"],a:0},
+{q:"ما هو أشهر فيلم لكريستوفر نولان؟",o:["Dunkirk","Tenet","Inception","Interstellar"],a:2},
+{q:"ما هو أول فيلم كارتوني ناطق من ديزني؟",o:["بامبي","بينوكيو","سنو وايت","سندريلا"],a:2},
+{q:"فيلم Parasite من أي دولة؟",o:["اليابان","الصين","كوريا الجنوبية","تايوان"],a:2}
+],
+med:[
+{q:"فيلم Titanic أُنتج عام 1997",a:true},
+{q:"هيث ليدجر حصل على أوسكار بعد وفاته",a:true},
+{q:"ديزني تمتلك ستوديو Pixar",a:true},
+{q:"فيلم Avatar مبني على قصة حقيقية",a:false},
+{q:"جورج لوكاس مخرج Star Wars الأصلي",a:true},
+{q:"فيلم Parasite أول فيلم غير ناطق بالإنجليزية يفوز بأوسكار أحسن فيلم",a:true},
+{q:"سلسلة Harry Potter مبنية على روايات",a:true},
+{q:"ستيفن سبيلبرغ مخرج فيلم E.T.",a:true},
+{q:"The Dark Knight من أفضل أفلام DC",a:true},
+{q:"فيلم The Godfather مبني على رواية",a:true}
+],
+hard:[
+{q:"ما هو أول فيلم في التاريخ؟",a:"فيلم اللومير عام 1895"},
+{q:"ما هو الفيلم الحائز على أكبر عدد من جوائز الأوسكار؟",a:"Ben Hur وTitanic وReturn of the King كل منها 11 جائزة"},
+{q:"ما هي الجائزة السينمائية الفرنسية الأكبر؟",a:"جائزة سيزار César"},
+{q:"من مخرج فيلم Schindler's List مؤلف روايته؟",a:"توماس كينيلي"},
+{q:"ما هو اسم المكياج الذي يحول الممثل لشكل مختلف كلياً؟",a:"مكياج البروستيتكس"}
+]
+},
+arabic_lang:{
+easy:[
+{q:"كم عدد حروف اللغة العربية؟",o:["26","28","30","32"],a:1},
+{q:"ما هو جمع كلمة كلب؟",o:["أكلاب","كلاب","كيلاب","كلوب"],a:1},
+{q:"ما هو المذكر من أم؟",o:["أب","عم","أخ","جد"],a:0},
+{q:"ما هو إعراب الاسم في جملة جاء محمدٌ؟",o:["مفعول به","مبتدأ","فاعل","خبر"],a:2},
+{q:"ما هي صيغة الجمع لكلمة قلم؟",o:["أقلام","قلوم","أقالم","قلامة"],a:0},
+{q:"كلمة يكتب فعل ماذا؟",o:["ماضٍ","مضارع","أمر","مصدر"],a:1},
+{q:"ما هو عكس كلمة طويل؟",o:["عريض","ضيق","قصير","صغير"],a:2},
+{q:"ما هو المصدر من فعل كتب؟",o:["يكتب","اكتب","كتابة","كاتب"],a:2},
+{q:"ما هو جمع كلمة يد؟",o:["أياد","أيدٍ","يدان","كلها صحيحة"],a:3},
+{q:"كم عدد حركات الإعراب الأصلية؟",o:["2","3","4","5"],a:1},
+{q:"ما هو المفرد من كلمة كتب؟",o:["كتاب","كاتب","مكتبة","كتابة"],a:0},
+{q:"ما هو ضد كلمة الليل؟",o:["الصباح","النهار","المساء","الفجر"],a:1},
+{q:"ما هو الفعل الأمر من كتب؟",o:["يكتب","كتابة","اكتب","كاتب"],a:2},
+{q:"ما هو المؤنث من أسد؟",o:["أسدة","لبوة","أسدات","لبؤة"],a:3},
+{q:"ما هو جمع كلمة بيت؟",o:["بيوت","أبيات","بيتان","كلها صحيحة"],a:3}
+],
+med:[
+{q:"اللغة العربية تُكتب من اليسار إلى اليمين",a:false},
+{q:"الضمة علامة الرفع في الاسم المفرد",a:true},
+{q:"الفعل الثلاثي المجرد له ثلاثة حروف أصلية فقط",a:true},
+{q:"التنوين يظهر في الأسماء المعرفة",a:false},
+{q:"الفعل المضارع يبدأ بأحد حروف أنيت",a:true},
+{q:"حروف الجر تعمل الرفع",a:false},
+{q:"المبتدأ والخبر كلاهما مرفوعان",a:true},
+{q:"ظرف الزمان يجيب على سؤال أين؟",a:false},
+{q:"جمع المذكر السالم ينتهي بـ ون في حالة الرفع",a:true},
+{q:"المفعول به يكون مرفوعاً",a:false}
+],
+hard:[
+{q:"ما هي علامة إعراب الاسم في حالة الجر؟",a:"الكسرة أو الياء للمثنى والجمع"},
+{q:"ما هي الجملة الاسمية؟",a:"الجملة التي تبدأ باسم وتتكون من مبتدأ وخبر"},
+{q:"ما هو الفرق بين الفعل المتعدي واللازم؟",a:"المتعدي يحتاج لمفعول به، واللازم لا يحتاج"},
+{q:"ما هو مفهوم المصدر الصريح في النحو؟",a:"اسم يدل على الحدث مجرداً من الزمن"},
+{q:"ما هي أنواع الخبر في الجملة الاسمية؟",a:"خبر مفرد، خبر جملة، خبر شبه جملة"}
+]
+}
+};
+
+// ══════════════════════════════════════════
+//  GAME ENGINE
+// ══════════════════════════════════════════
+const AVATARS = ['😀','😎','🤩','🥳','😏','😈','🤠','👽','🤖','🦸','🧙','🦊','🐯','🦁','🐻','🐼','🦅','🐉','👑','🔥','💎','⚡','🌟','🎯','🏆','🎸','🚀','🌙','🎭','🎪','🌊','🦋','🌈','💫','🎀','🎲','🗡️','🛡️','🧠','❤️','💜','🖤','🏅','🥇','🦄','🐺','🦈','🐬','🐲','🦉'];
+const CAT_META = {
+  general:  {icon:'🌍', label:'معلومات عامة'},
+  science:  {icon:'🔬', label:'علوم'},
+  history:  {icon:'📜', label:'تاريخ'},
+  sports:   {icon:'⚽', label:'رياضة'},
+  religion: {icon:'🕌', label:'دين'},
+  fun:      {icon:'😄', label:'طرائف'},
+  food:     {icon:'🍔', label:'طعام'},
+  animals:  {icon:'🦁', label:'حيوانات'},
+  tech:     {icon:'💻', label:'تكنولوجيا'},
+  geography:{icon:'🗺️', label:'جغرافيا'},
+  math:     {icon:'➕', label:'رياضيات'},
+  movies:   {icon:'🎬', label:'سينما'},
+  arabic_lang:{icon:'📚', label:'لغة عربية'}
+};
+
+
+// ═══════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════════════════════
+const ROOM = {
+  mode: 'all', diff: 'mixed', time: 30,
+  name: '', isHost: false,
+  players: [], requests: [], chat: [],
+  pollInterval: null, roomId: null
+};
+
+const STORE_PACKS = [
+  // أضف روابطك هنا — Add your Google Drive links here
+  // { id: 'pack1', name: 'أسئلة عامة متقدمة', icon: '🌍', desc: '200 سؤال متنوع', cat: 'general', url: 'GOOGLE_DRIVE_DIRECT_LINK' },
+  // { id: 'pack2', name: 'أسئلة دينية',        icon: '🕌', desc: '150 سؤال ديني',  cat: 'religion', url: 'GOOGLE_DRIVE_DIRECT_LINK' },
+  // { id: 'pack3', name: 'أسئلة رياضية',       icon: '⚽', desc: '180 سؤال رياضي', cat: 'sports',   url: 'GOOGLE_DRIVE_DIRECT_LINK' },
+];
+
+const AUTH = {
+  user: null,
+  load() {
+    const saved = localStorage.getItem('hc_user');
+    if (saved) { AUTH.user = JSON.parse(saved); return true; }
+    return false;
+  },
+  save(fname, lname) {
+    AUTH.user = { fname, lname, full: fname + ' ' + lname, av: '🔥' };
+    localStorage.setItem('hc_user', JSON.stringify(AUTH.user));
+  },
+  clear() {
+    localStorage.removeItem('hc_user');
+    AUTH.user = null;
+  }
+};
+
+
+const G = {
+  // ─── CONFIG ───
+  cfg: {
+    players: [],
+    mode: 'all',
+    diff: 'mixed',
+    cats: Object.keys(CAT_META),
+    time: 30,
+    hearts: true,
+    joker: true,
+    chain: true
+  },
+
+  // ─── STATE ───
+  s: {},
+  _timer: null,
+  _avTarget: null,
+
+  // ─── NAVIGATION ───
+  go(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
+    const pg = document.getElementById(pageId);
+    if (pg) { pg.classList.add('show'); window.scrollTo(0,0); }
+  },
+
+  // ─── AVATARS ───
+  buildAvGrid() {
+    const g = document.getElementById('av-grid');
+    if (g._built) return;
+    g._built = true;
+    g.innerHTML = AVATARS.map(a =>
+      `<div class="av-item" onclick="G.pickAv('${a}')">${a}</div>`
+    ).join('');
+  },
+  openAv(idx) {
+    this._avTarget = idx;
+    this.buildAvGrid();
+    document.getElementById('av-overlay').classList.add('open');
+  },
+  closeAv(e) {
+    if (e && e.target !== document.getElementById('av-overlay')) return;
+    document.getElementById('av-overlay').classList.remove('open');
+    this._avTarget = null;
+  },
+  pickAv(av) {
+    if (this._avTarget === null) return;
+    const btn = document.querySelector(`[data-avidx="${this._avTarget}"]`);
+    if (btn) btn.textContent = av;
+    document.getElementById('av-overlay').classList.remove('open');
+    this._avTarget = null;
+  },
+
+  // ─── SETUP ───
+  buildSetup() {
+    const n = parseInt(document.getElementById('count-display').textContent) || 4;
+    this.renderPlayerRows(n);
+  },
+  changeCount(d) {
+    const el = document.getElementById('count-display');
+    let n = parseInt(el.textContent) + d;
+    n = Math.max(2, Math.min(20, n));
+    el.textContent = n;
+    this.renderPlayerRows(n);
+  },
+  renderPlayerRows(n) {
+    const list = document.getElementById('players-list');
+    const cur = list.children.length;
+    // Add rows
+    for (let i = cur; i < n; i++) {
+      const row = document.createElement('div');
+      row.className = 'player-row anim-fadein';
+      row.style.animationDelay = (i * 0.04) + 's';
+      row.innerHTML = `
+        <span class="player-num">${i+1}</span>
+        <div class="av-pick" data-avidx="${i}" onclick="G.openAv(${i})">
+          ${AVATARS[i % AVATARS.length]}
+        </div>
+        <input class="player-input" placeholder="اسم اللاعب ${i+1}" maxlength="16">
+      `;
+      list.appendChild(row);
+    }
+    // Remove extra rows
+    while (list.children.length > n) list.removeChild(list.lastChild);
+  },
+  goSettings() {
+    const rows = document.querySelectorAll('#players-list .player-row');
+    const players = [];
+    rows.forEach((row, i) => {
+      const name = row.querySelector('.player-input').value.trim() || `لاعب ${i+1}`;
+      const av = row.querySelector('.av-pick').textContent.trim();
+      players.push({ name, av, pts: 0, ok: 0, bad: 0, skip: 0, hearts: 3, jokerUsed: false });
+    });
+    this.cfg.players = players;
+    this.buildCatGrid();
+    this.go('pg-settings');
+  },
+
+  // ─── SETTINGS ───
+  buildCatGrid() {
+    const g = document.getElementById('cats-grid');
+    if (g._built) return;
+    g._built = true;
+    g.innerHTML = Object.entries(CAT_META).map(([k, v]) =>
+      `<div class="cat-card chosen" data-cat="${k}" onclick="G.toggleCat(this,'${k}')">
+        <span class="cc-icon">${v.icon}</span>
+        <span class="cc-label">${v.label}</span>
+      </div>`
+    ).join('');
+    this.cfg.cats = Object.keys(CAT_META);
+  },
+  setMode(m) {
+    this.cfg.mode = m;
+    document.querySelectorAll('[id^="mode-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('mode-' + m);
+    if (el) el.classList.add('chosen');
+  },
+  setDiff(d) {
+    this.cfg.diff = d;
+    document.querySelectorAll('[id^="diff-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('diff-' + d);
+    if (el) el.classList.add('chosen');
+  },
+  setTime(t) {
+    this.cfg.time = t;
+    document.querySelectorAll('[id^="time-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('time-' + t);
+    if (el) el.classList.add('chosen');
+  },
+  toggleCat(el, cat) {
+    const i = this.cfg.cats.indexOf(cat);
+    if (i >= 0) {
+      if (this.cfg.cats.length <= 1) return; // keep at least 1
+      this.cfg.cats.splice(i, 1);
+      el.classList.remove('chosen');
+    } else {
+      this.cfg.cats.push(cat);
+      el.classList.add('chosen');
+    }
+  },
+  toggleFeat(f) {
+    this.cfg[f] = !this.cfg[f];
+    const el = document.getElementById('tog-' + f);
+    if (el) el.classList.toggle('on', this.cfg[f]);
+  },
+
+  // ─── QUESTION POOL ───
+  buildPool() {
+    const pool = [];
+    this.cfg.cats.forEach(cat => {
+      const db = QDB[cat];
+      if (!db) return;
+      const addType = (arr, type, diff) => {
+        (arr || []).forEach(q => pool.push({...q, cat, diff, type}));
+      };
+      if (this.cfg.diff === 'easy' || this.cfg.diff === 'mixed') addType(db.easy, 'mcq', 'easy');
+      if (this.cfg.diff === 'med'  || this.cfg.diff === 'mixed') addType(db.med, 'tf', 'med');
+      if (this.cfg.diff === 'hard' || this.cfg.diff === 'mixed') addType(db.hard, 'open', 'hard');
+      if (this.cfg.diff === 'easy') {} // already added
+      if (this.cfg.diff === 'med') {}
+      if (this.cfg.diff === 'hard') {}
+    });
+    return this.shuffle([...pool]);
+  },
+  shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  },
+
+  // ─── START GAME ───
+  startGame() {
+    // Reset player stats
+    this.cfg.players.forEach(p => {
+      p.pts = 0; p.ok = 0; p.bad = 0; p.skip = 0;
+      p.hearts = 3; p.jokerUsed = false;
+    });
+    const pool = this.buildPool();
+    this.s = {
+      pool,
+      poolIdx: 0,
+      mode: this.cfg.mode,
+      roundNum: 0,
+      // All-play
+      order: this.shuffle(this.cfg.players.map((_, i) => i)),
+      orderIdx: 0,
+      // Current round
+      roundQs: [],
+      roundQIdx: 0,
+      curOk: 0, curBad: 0, curSkip: 0, curPts: 0,
+      chain: 0,
+      answered: false,
+      // Bracket
+      bracketRound: 0,
+      bracketPairs: [],
+      bracketPairIdx: 0,
+      bracketWinners: [],
+      duelP1: null, duelP2: null,
+      duelPhase: 0 // 0 = p1 turn, 1 = p2 turn
+    };
+    if (this.cfg.mode === 'bracket') {
+      this.initBracket();
+    } else {
+      this.startNextPlayerTurn();
+    }
+  },
+
+  // ─── ALL-PLAY ───
+  startNextPlayerTurn() {
+    const s = this.s;
+    if (s.orderIdx >= s.order.length) {
+      // All players done one round — check if do another
+      s.roundNum++;
+      s.orderIdx = 0;
+      s.order = this.shuffle([...s.order]);
+    }
+    const pidx = s.order[s.orderIdx];
+    s.curPlayerIdx = pidx;
+    s.curOk = 0; s.curBad = 0; s.curSkip = 0; s.curPts = 0;
+    s.chain = 0; s.answered = false;
+    // Pick 5 questions
+    s.roundQs = [];
+    for (let i = 0; i < 5 && s.poolIdx < s.pool.length; i++) {
+      s.roundQs.push(s.pool[s.poolIdx++]);
+    }
+    if (s.roundQs.length === 0) { this.endGame(); return; }
+    s.roundQIdx = 0;
+    this.showGameScreen(pidx, false);
+    this.countdown(() => this.showQuestion());
+  },
+
+  showGameScreen(pidx, isDuel) {
+    const p = this.cfg.players[pidx];
+    document.getElementById('cur-av').textContent = p.av;
+    document.getElementById('cur-name').textContent = p.name;
+    document.getElementById('cur-round').textContent = `الجولة ${this.s.roundNum + 1}`;
+    // Hearts
+    const hr = document.getElementById('hearts-row');
+    if (this.cfg.hearts) {
+      hr.style.display = 'flex';
+      hr.innerHTML = Array(p.hearts).fill('❤️').join('') + Array(3 - p.hearts).fill('🖤').join('');
+    } else {
+      hr.style.display = 'none';
+    }
+    // Duel bar
+    const db = document.getElementById('duel-bar');
+    if (isDuel) {
+      db.classList.add('show');
+      this.updateDuelBar();
+    } else {
+      db.classList.remove('show');
+    }
+    // Score
+    this.updateScoreBar();
+    this.go('pg-game');
+  },
+
+  updateDuelBar() {
+    const s = this.s;
+    if (s.duelP1 === null) return;
+    const p1 = this.cfg.players[s.duelP1];
+    const p2 = this.cfg.players[s.duelP2];
+    document.getElementById('d-av1').textContent = p1.av;
+    document.getElementById('d-name1').textContent = p1.name;
+    document.getElementById('d-pts1').textContent = p1.pts;
+    document.getElementById('d-av2').textContent = p2.av;
+    document.getElementById('d-name2').textContent = p2.name;
+    document.getElementById('d-pts2').textContent = p2.pts;
+  },
+
+  updateScoreBar() {
+    document.getElementById('sc-ok').textContent = this.s.curOk;
+    document.getElementById('sc-bad').textContent = this.s.curBad;
+    document.getElementById('sc-skip').textContent = this.s.curSkip;
+    document.getElementById('sc-pts').textContent = this.s.curPts;
+  },
+
+  // ─── COUNTDOWN ───
+  countdown(cb) {
+    const pidx = this.s.curPlayerIdx;
+    const p = this.cfg.players[pidx];
+    const overlay = document.getElementById('countdown-overlay');
+    const numEl = document.getElementById('countdown-num');
+    const playerEl = document.getElementById('countdown-player');
+    playerEl.textContent = `${p.av} ${p.name}`;
+    overlay.classList.add('show');
+    let n = 3;
+    numEl.textContent = n;
+    const tick = () => {
+      n--;
+      if (n > 0) {
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;
+        numEl.style.animation = 'countDown 1s ease';
+        numEl.textContent = n;
+        setTimeout(tick, 900);
+      } else {
+        overlay.classList.remove('show');
+        cb();
+      }
+    };
+    numEl.style.animation = 'countDown 1s ease';
+    setTimeout(tick, 900);
+  },
+
+  // ─── SHOW QUESTION ───
+  showQuestion() {
+    const s = this.s;
+    if (s.roundQIdx >= s.roundQs.length) { this.endRound(); return; }
+    const q = s.roundQs[s.roundQIdx];
+    s.curQ = q;
+    s.answered = false;
+
+    // Progress dots
+    const pr = document.getElementById('prog-row');
+    pr.innerHTML = s.roundQs.map((_, i) =>
+      `<div class="prog-dot ${i < s.roundQIdx ? 'done' : i === s.roundQIdx ? 'cur' : ''}"></div>`
+    ).join('');
+
+    // Meta
+    const meta = document.getElementById('q-meta');
+    const catMeta = CAT_META[q.cat] || {icon:'❓', label: q.cat};
+    const diffLabel = {easy:'⭐ سهل', med:'⭐⭐ متوسط', hard:'⭐⭐⭐ صعب'}[q.diff] || '';
+    const diffClass = q.diff;
+    meta.innerHTML = `<span class="q-tag">${catMeta.icon} ${catMeta.label}</span><span class="q-diff-tag ${diffClass}">${diffLabel}</span>`;
+
+    // Question text
+    document.getElementById('q-text').textContent = q.q;
+
+    // Hint (for open questions)
+    const hint = document.getElementById('q-hint');
+    if (q.type === 'open') {
+      hint.style.display = 'block';
+      hint.textContent = '💡 الإجابة: ' + q.a;
+    } else {
+      hint.style.display = 'none';
+    }
+
+    // Reset answer areas
+    document.getElementById('opts-grid').style.display = 'none';
+    document.getElementById('tf-row').style.display = 'none';
+    document.getElementById('open-btns').style.display = 'none';
+
+    if (q.type === 'mcq') {
+      const og = document.getElementById('opts-grid');
+      og.style.display = 'grid';
+      og.innerHTML = q.o.map((opt, i) =>
+        `<button class="opt-btn" onclick="G.answerMCQ(${i})">${opt}</button>`
+      ).join('');
+    } else if (q.type === 'tf') {
+      document.getElementById('tf-row').style.display = 'grid';
+      const tfT = document.getElementById('tf-true');
+      const tfF = document.getElementById('tf-false');
+      tfT.className = 'tf-btn tf-true';
+      tfF.className = 'tf-btn tf-false';
+      tfT.disabled = false;
+      tfF.disabled = false;
+    } else {
+      document.getElementById('open-btns').style.display = 'grid';
+    }
+
+    // Joker
+    const pidx = s.curPlayerIdx;
+    const p = this.cfg.players[pidx];
+    const jokerBtn = document.getElementById('joker-btn');
+    jokerBtn.style.display = (this.cfg.joker && !p.jokerUsed && q.type === 'mcq') ? 'block' : 'none';
+
+    // Action buttons
+    document.getElementById('btn-pass').style.display = 'block';
+    document.getElementById('btn-next').style.display = 'none';
+
+    // Timer
+    this.startTimer(this.cfg.time);
+  },
+
+  // ─── TIMER ───
+  startTimer(secs) {
+    if (this._timer) clearInterval(this._timer);
+    const arc = document.getElementById('timer-arc');
+    const num = document.getElementById('timer-num');
+    const circumference = 2 * Math.PI * 40; // r=40
+    let rem = secs;
+    num.textContent = rem;
+    arc.style.stroke = 'var(--gold)';
+    arc.style.strokeDashoffset = '0';
+    this._timer = setInterval(() => {
+      rem--;
+      num.textContent = rem;
+      const offset = circumference * (1 - rem / secs);
+      arc.style.strokeDashoffset = offset;
+      if (rem <= 5) arc.style.stroke = 'var(--red)';
+      if (rem <= 0) { clearInterval(this._timer); this.onTimeout(); }
+    }, 1000);
+  },
+  stopTimer() { if (this._timer) clearInterval(this._timer); },
+
+  onTimeout() {
+    const s = this.s;
+    if (s.answered) return;
+    s.answered = true;
+    const q = s.curQ;
+    if (q.type === 'mcq') {
+      document.querySelectorAll('.opt-btn').forEach((b, i) => {
+        b.disabled = true;
+        if (i === q.a) b.classList.add('correct');
+      });
+    } else if (q.type === 'tf') {
+      this.flashTF(q.a);
+    }
+    s.curBad++;
+    s.chain = 0;
+    const p = this.cfg.players[s.curPlayerIdx];
+    if (this.cfg.hearts) p.hearts = Math.max(0, p.hearts - 1);
+    this.updateScoreBar();
+    this.updateHearts(p);
+    this.showNextBtn();
+  },
+
+  // ─── ANSWERS ───
+  answerMCQ(idx) {
+    const s = this.s;
+    if (s.answered) return;
+    this.stopTimer();
+    s.answered = true;
+    const q = s.curQ;
+    document.querySelectorAll('.opt-btn').forEach((b, i) => {
+      b.disabled = true;
+      if (i === q.a) b.classList.add('correct');
+      else if (i === idx) b.classList.add('wrong');
+    });
+    this.registerAnswer(idx === q.a);
+  },
+  answerTF(ans) {
+    const s = this.s;
+    if (s.answered) return;
+    this.stopTimer();
+    s.answered = true;
+    const q = s.curQ;
+    this.flashTF(q.a);
+    this.registerAnswer(ans === q.a);
+  },
+  answerOpen(correct) {
+    const s = this.s;
+    if (s.answered) return;
+    this.stopTimer();
+    s.answered = true;
+    this.registerAnswer(correct);
+  },
+  flashTF(correct) {
+    const t = document.getElementById('tf-true');
+    const f = document.getElementById('tf-false');
+    t.disabled = true; f.disabled = true;
+    if (correct) { t.classList.add('correct'); f.classList.add('wrong'); }
+    else { f.classList.add('correct'); t.classList.add('wrong'); }
+  },
+  registerAnswer(correct) {
+    const s = this.s;
+    const q = s.curQ;
+    const pts = {easy: 1, med: 2, hard: 3}[q.diff] || 1;
+    const p = this.cfg.players[s.curPlayerIdx];
+    if (correct) {
+      s.curOk++;
+      s.chain++;
+      let earned = pts;
+      if (this.cfg.chain && s.chain % 3 === 0) {
+        earned += 2;
+        this.showChainPop(`🔥 سلسلة +${earned}`);
+      }
+      s.curPts += earned;
+    } else {
+      s.curBad++;
+      s.chain = 0;
+      if (this.cfg.hearts) p.hearts = Math.max(0, p.hearts - 1);
+      this.updateHearts(p);
+    }
+    this.updateScoreBar();
+    this.showNextBtn();
+  },
+  showChainPop(txt) {
+    const el = document.getElementById('chain-pop');
+    el.textContent = txt;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1500);
+  },
+  updateHearts(p) {
+    if (!this.cfg.hearts) return;
+    document.getElementById('hearts-row').innerHTML =
+      Array(p.hearts).fill('❤️').join('') + Array(3 - p.hearts).fill('🖤').join('');
+  },
+  showNextBtn() {
+    document.getElementById('btn-pass').style.display = 'none';
+    document.getElementById('btn-next').style.display = 'block';
+    document.getElementById('joker-btn').style.display = 'none';
+  },
+  pass() {
+    const s = this.s;
+    if (s.answered) return;
+    this.stopTimer();
+    s.answered = true;
+    s.curSkip++;
+    s.chain = 0;
+    this.showNextBtn();
+  },
+  nextQ() {
+    this.s.roundQIdx++;
+    this.showQuestion();
+  },
+  useJoker() {
+    const s = this.s;
+    const p = this.cfg.players[s.curPlayerIdx];
+    if (p.jokerUsed || s.answered) return;
+    p.jokerUsed = true;
+    document.getElementById('joker-btn').style.display = 'none';
+    const q = s.curQ;
+    if (q.type !== 'mcq') return;
+    const btns = document.querySelectorAll('.opt-btn');
+    let removed = 0;
+    btns.forEach((b, i) => {
+      if (i !== q.a && removed < 2) {
+        b.disabled = true;
+        b.style.opacity = '0.25';
+        removed++;
+      }
+    });
+  },
+
+  // ─── END ROUND ───
+  endRound() {
+    const s = this.s;
+    const pidx = s.curPlayerIdx;
+    const p = this.cfg.players[pidx];
+    p.pts += s.curPts;
+    p.ok += s.curOk;
+    p.bad += s.curBad;
+    p.skip += s.curSkip;
+
+    // Show timeup screen
+    document.getElementById('duel-winner-box').style.display = 'none';
+    document.getElementById('timeup-title').textContent = '⏰ انتهت الجولة';
+    document.getElementById('timeup-emoji').textContent = s.curOk > s.curBad ? '🎉' : '😤';
+    document.getElementById('timeup-player-name').textContent = `${p.av} ${p.name}`;
+    document.getElementById('timeup-pts').textContent = `+${s.curPts} نقطة`;
+    document.getElementById('timeup-detail').innerHTML =
+      `✅ ${s.curOk} صح &nbsp;&nbsp; ❌ ${s.curBad} خطأ &nbsp;&nbsp; ⏩ ${s.curSkip} باس`;
+
+    // Leaderboard
+    this.renderLeaderboard();
+
+    // مزامنة النقاط عبر P2P
+    const scoreMsg = { type:'score_update', player: p.name, pts: p.pts, ok: p.ok, bad: p.bad, skip: p.skip };
+    if (PEER_STATE.isHost) {
+      PEER_STATE.scores[p.name] = scoreMsg;
+      broadcast(scoreMsg);
+    } else if (PEER_STATE.conn?.open) {
+      PEER_STATE.conn.send(scoreMsg);
+    }
+
+    // Next button
+    s.orderIdx++;
+    const hasMore = s.poolIdx < s.pool.length && s.roundNum < 3;
+    const nb = document.getElementById('next-round-btn');
+    nb.style.display = hasMore ? 'block' : 'none';
+    nb.textContent = '▶️ اللاعب التالي';
+
+    this.go('pg-timeup');
+  },
+
+  nextRound() {
+    const s = this.s;
+    if (s.mode === 'bracket') {
+      this.nextBracketPhase();
+    } else {
+      this.startNextPlayerTurn();
+    }
+  },
+
+  renderLeaderboard() {
+    const sorted = [...this.cfg.players].sort((a, b) => b.pts - a.pts);
+    document.getElementById('lb-rows').innerHTML = sorted.map((p, i) =>
+      `<div class="lb-row">
+        <span class="lb-rank">${['🥇','🥈','🥉'][i] || (i+1)}</span>
+        <span class="lb-av">${p.av}</span>
+        <span class="lb-name">${p.name}</span>
+        <span class="lb-pts">${p.pts}</span>
+      </div>`
+    ).join('');
+  },
+
+  // ─── BRACKET ───
+  initBracket() {
+    const s = this.s;
+    s.bracketRound = 0;
+    let players = this.shuffle(this.cfg.players.map((_, i) => i));
+    // Pad to power of 2
+    while (players.length > 2 && (players.length & (players.length - 1)) !== 0) {
+      // Give random player a bye
+      const byeIdx = Math.floor(Math.random() * players.length);
+      s.bracketWinners.push(players.splice(byeIdx, 1)[0]);
+    }
+    s.bracketPairs = [];
+    for (let i = 0; i < players.length; i += 2) {
+      s.bracketPairs.push([players[i], players[i+1]]);
+    }
+    s.bracketPairIdx = 0;
+    this.showBracketScreen();
+  },
+
+  showBracketScreen() {
+    const s = this.s;
+    document.getElementById('bracket-round-label').textContent = `الدور ${s.bracketRound + 1}`;
+    const container = document.getElementById('bracket-matches');
+    container.innerHTML = s.bracketPairs.map((pair, i) => {
+      const p1 = this.cfg.players[pair[0]];
+      const p2 = this.cfg.players[pair[1]];
+      return `<div class="bracket-match ${i === s.bracketPairIdx ? 'active' : ''}">
+        <div class="bracket-pl">
+          <span class="bracket-pl-av">${p1.av}</span>
+          <span class="bracket-pl-name">${p1.name}</span>
+          <span class="bracket-pl-score">${p1.pts}</span>
+        </div>
+        <div class="bracket-vs-sep">⚔️ مقابل</div>
+        <div class="bracket-pl">
+          <span class="bracket-pl-av">${p2.av}</span>
+          <span class="bracket-pl-name">${p2.name}</span>
+          <span class="bracket-pl-score">${p2.pts}</span>
+        </div>
+      </div>`;
+    }).join('');
+    this.go('pg-bracket');
+  },
+
+  startBracketMatch() {
+    const s = this.s;
+    if (s.bracketPairIdx >= s.bracketPairs.length) {
+      this.advanceBracket();
+      return;
+    }
+    const pair = s.bracketPairs[s.bracketPairIdx];
+    s.duelP1 = pair[0];
+    s.duelP2 = pair[1];
+    s.duelPhase = 0; // p1 goes first
+    s.curPlayerIdx = s.duelP1;
+    // Reset round pts for this duel
+    this.cfg.players[s.duelP1].pts = 0;
+    this.cfg.players[s.duelP2].pts = 0;
+    // Pick questions for duel (6 each = 12 total, split evenly)
+    s.roundQs = [];
+    for (let i = 0; i < 6 && s.poolIdx < s.pool.length; i++) {
+      s.roundQs.push(s.pool[s.poolIdx++]);
+    }
+    s.roundQIdx = 0;
+    s.curOk = 0; s.curBad = 0; s.curSkip = 0; s.curPts = 0;
+    s.chain = 0; s.answered = false;
+    this.showGameScreen(s.duelP1, true);
+    this.countdown(() => this.showQuestion());
+  },
+
+  nextBracketPhase() {
+    const s = this.s;
+    if (s.duelPhase === 0) {
+      // P1 done, P2's turn
+      s.duelPhase = 1;
+      s.curPlayerIdx = s.duelP2;
+      s.roundQs = [];
+      for (let i = 0; i < 6 && s.poolIdx < s.pool.length; i++) {
+        s.roundQs.push(s.pool[s.poolIdx++]);
+      }
+      s.roundQIdx = 0;
+      s.curOk = 0; s.curBad = 0; s.curSkip = 0; s.curPts = 0;
+      s.chain = 0; s.answered = false;
+      this.showGameScreen(s.duelP2, true);
+      this.countdown(() => this.showQuestion());
+    } else {
+      // Both done — determine winner
+      const p1 = this.cfg.players[s.duelP1];
+      const p2 = this.cfg.players[s.duelP2];
+      const winnerIdx = p1.pts >= p2.pts ? s.duelP1 : s.duelP2;
+      s.bracketWinners.push(winnerIdx);
+      const wp = this.cfg.players[winnerIdx];
+      document.getElementById('duel-winner-box').style.display = 'block';
+      document.getElementById('duel-winner-name').textContent = `${wp.av} ${wp.name}`;
+      document.getElementById('duel-scores').textContent =
+        `${p1.name}: ${p1.pts} نقطة  |  ${p2.name}: ${p2.pts} نقطة`;
+      this.renderLeaderboard();
+      s.bracketPairIdx++;
+      const nb = document.getElementById('next-round-btn');
+      if (s.bracketPairIdx < s.bracketPairs.length) {
+        nb.style.display = 'block';
+        nb.textContent = '⚔️ المباراة التالية';
+      } else {
+        nb.style.display = 'block';
+        nb.textContent = '🏆 الدور التالي';
+      }
+      this.go('pg-timeup');
+    }
+  },
+
+  advanceBracket() {
+    const s = this.s;
+    const allWinners = [...s.bracketWinners];
+    s.bracketWinners = [];
+    if (allWinners.length === 1) {
+      // Champion!
+      this.showResults(allWinners[0]);
+      return;
+    }
+    s.bracketRound++;
+    s.bracketPairs = [];
+    for (let i = 0; i < allWinners.length; i += 2) {
+      if (allWinners[i + 1] !== undefined) {
+        s.bracketPairs.push([allWinners[i], allWinners[i + 1]]);
+      } else {
+        s.bracketWinners.push(allWinners[i]); // bye
+      }
+    }
+    s.bracketPairIdx = 0;
+    this.showBracketScreen();
+  },
+
+  // ─── END GAME ───
+  endGame() { G.showReport(); },
+
+  showResults(champIdx, winner) {
+    G.showReport(); return; // redirected to report
+    // original below (unreachable)
+  },
+  _showResultsOrig(champIdx, winner) {
+    const w = champIdx !== null && champIdx !== undefined
+      ? this.cfg.players[champIdx]
+      : (winner || this.cfg.players.sort((a,b) => b.pts - a.pts)[0]);
+    document.getElementById('win-av').textContent = w.av;
+    document.getElementById('win-name').textContent = w.name;
+    document.getElementById('win-sub').textContent = `🏆 ${w.pts} نقطة`;
+    const sorted = [...this.cfg.players].sort((a, b) => b.pts - a.pts);
+    document.getElementById('results-list').innerHTML = sorted.map((p, i) =>
+      `<div class="result-row">
+        <span class="result-rank">${['🥇','🥈','🥉'][i] || (i+1)}</span>
+        <span class="result-av">${p.av}</span>
+        <div class="result-info">
+          <div class="result-name">${p.name}</div>
+          <div class="result-title">${this.getTitle(p, i, sorted)}</div>
+        </div>
+        <span class="result-pts">${p.pts}</span>
+      </div>`
+    ).join('');
+    this.go('pg-results');
+    this.confetti();
+  },
+
+  getTitle(p, rank, sorted) {
+    if (rank === 0) return '👑 بطل الكرسي الساخن';
+    if (rank === sorted.length - 1) return '🪑 صاحب الكرسي الأسخن';
+    if (p.ok > 0 && p.bad === 0) return '🎯 قناص لا يخطئ';
+    if (p.ok > p.bad * 2) return '🧠 موسوعة متحركة';
+    if (p.skip > p.ok) return '⏩ سيد التخطي';
+    return '🎮 لاعب شريف';
+  },
+
+  confetti() {
+    const colors = ['#ffd700','#ff4500','#00e676','#40c4ff','#ce93d8','#ff69b4'];
+    for (let i = 0; i < 70; i++) {
+      setTimeout(() => {
+        const c = document.createElement('div');
+        c.style.cssText = `position:fixed;top:-8px;left:${Math.random()*100}vw;width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};animation:confettiFall ${1.5+Math.random()*2.5}s linear forwards;z-index:9999;pointer-events:none;`;
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 4500);
+      }, i * 40);
+    }
+  },
+
+
+  // ── AUTH ──
+  doLogin() {
+    const fname = document.getElementById('login-fname').value.trim();
+    const lname = document.getElementById('login-lname').value.trim();
+    const err = document.getElementById('login-err');
+    if (!fname || !lname) { err.style.display='block'; return; }
+    err.style.display = 'none';
+    AUTH.save(fname, lname);
+    G.goSplash();
+  },
+  goSplash() {
+    if (!AUTH.user) { G.go('pg-login'); return; }
+    document.getElementById('splash-greeting').textContent = `مرحباً ${AUTH.user.full} 👋`;
+    document.getElementById('lobby-user-name').textContent = AUTH.user.full;
+    G.go('pg-splash');
+  },
+  logout() {
+    AUTH.clear();
+    G.go('pg-login');
+  },
+
+  // ── MODE ──
+  startOffline() {
+    G.go('pg-setup');
+    G.buildSetup();
+  },
+  startOnline() {
+    const nameEl = document.getElementById('lobby-user-name');
+    if (nameEl) nameEl.textContent = AUTH.user ? AUTH.user.full : 'لاعب';
+    G.go('pg-lobby');
+  },
+
+  // ── ROOM SETTINGS ──
+  setRoomMode(m) {
+    ROOM.mode = m;
+    document.querySelectorAll('[id^="rm-mode-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('rm-mode-' + m);
+    if (el) el.classList.add('chosen');
+  },
+  setRoomDiff(d) {
+    ROOM.diff = d;
+    document.querySelectorAll('[id^="rm-diff-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('rm-diff-' + d);
+    if (el) el.classList.add('chosen');
+  },
+  setRoomTime(t) {
+    ROOM.time = t;
+    document.querySelectorAll('[id^="rm-time-"]').forEach(el => el.classList.remove('chosen'));
+    const el = document.getElementById('rm-time-' + t);
+    if (el) el.classList.add('chosen');
+  },
+  createRoom() { G.go('pg-create-room'); },
+  async confirmCreateRoom() {
+    const name = document.getElementById('room-name-input').value.trim() || (AUTH.user ? 'غرفة ' + AUTH.user.fname : 'غرفة جديدة');
+    ROOM.name = name; ROOM.isHost = true;
+    // تهيئة PeerJS كمضيف
+    PEER_STATE.isHost = true;
+    PEER_STATE.players = [{ name: AUTH.user?.full || 'المضيف', av: '🔥', isHost: true, accepted: true, ready: false, pts:0, ok:0, bad:0, skip:0 }];
+    PEER_STATE.chat = [];
+    document.getElementById('rh-room-name').textContent = '🏠 ' + name;
+    document.getElementById('rh-room-code').textContent = '⏳ جارٍ إنشاء الغرفة...';
+    G.go('pg-room-host');
+    G.renderHostPlayers();
+    try {
+      const peerId = await initPeer();
+      PEER_STATE.roomCode = peerId;
+      ROOM.roomId = peerId;
+      document.getElementById('rh-room-code').textContent = 'كود الغرفة: ' + peerId;
+      // استقبال اتصالات الضيوف
+      PEER_STATE.peer.on('connection', conn => {
+        conn.on('open', () => {
+          PEER_STATE.conns.push(conn);
+          document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+        });
+        conn.on('data', msg => handleMsg(msg, conn));
+        conn.on('close', () => {
+          PEER_STATE.conns = PEER_STATE.conns.filter(c => c !== conn);
+          PEER_STATE.players = PEER_STATE.players.filter(p => p.conn !== conn);
+          G.renderHostPlayers();
+          document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+        });
+      });
+    } catch(e) {
+      document.getElementById('rh-room-code').textContent = '⚠️ خطأ في إنشاء الغرفة';
+    }
+  },
+  browseRooms() {
+    G.go('pg-browse-rooms');
+    document.getElementById('rooms-list').innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center">
+        <div style="font-size:2rem;margin-bottom:10px">🔑</div>
+        <div style="font-weight:900;margin-bottom:6px">أدخل كود الغرفة</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:14px">اطلب الكود من المضيف</div>
+        <input id="room-code-input" class="adm-input" placeholder="مثال: HC_ABC123" style="text-align:center;letter-spacing:3px;font-size:1.1rem;margin-bottom:12px" maxlength="20">
+        <button class="btn-fire" onclick="G.joinByCode()">🔗 انضمام</button>
+        <div id="join-err" style="color:var(--red);font-size:.75rem;margin-top:8px;display:none"></div>
+      </div>`;
+  },
+
+  async joinByCode() {
+    const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+    if (!code) return;
+    document.getElementById('join-err').style.display = 'none';
+    G.joinRoom(code, 'غرفة ' + code, '');
+  },
+  async joinRoom(roomId, roomName, hostName) {
+    ROOM.roomId = roomId; ROOM.name = roomName; ROOM.isHost = false; PEER_STATE.isHost = false;
+    PEER_STATE.isHost = false; PEER_STATE.players = []; PEER_STATE.chat = [];
+    document.getElementById('rg-room-name').textContent = '🔗 جارٍ الاتصال...';
+    document.getElementById('rg-status-icon').textContent = '⏳';
+    document.getElementById('rg-status-text').textContent = 'جارٍ الاتصال بالغرفة...';
+    G.go('pg-room-guest');
+    try {
+      await initPeer(); // ضيف بـ ID عشوائي
+      const conn = PEER_STATE.peer.connect(roomId, { reliable: true });
+      PEER_STATE.conn = conn;
+      conn.on('open', () => {
+        document.getElementById('rg-room-name').textContent = '🔗 ' + roomId;
+        document.getElementById('rg-status-icon').textContent = '✅';
+        document.getElementById('rg-status-text').textContent = 'متصل! في انتظار موافقة المضيف...';
+        // أرسل طلب الانضمام
+        conn.send({ type:'join_req', name: AUTH.user?.full || 'لاعب', av: AUTH.user?.av || '👤' });
+      });
+      conn.on('data', msg => handleMsg(msg, conn));
+      conn.on('close', () => {
+        document.getElementById('rg-status-text').textContent = '⚠️ انقطع الاتصال بالمضيف';
+      });
+      conn.on('error', () => {
+        document.getElementById('rg-status-icon').textContent = '❌';
+        document.getElementById('rg-status-text').textContent = 'فشل الاتصال — تحقق من الكود';
+        const e = document.getElementById('join-err');
+        if(e){ e.textContent='❌ كود خاطئ أو الغرفة غير متاحة'; e.style.display='block'; }
+      });
+    } catch(e) {
+      document.getElementById('rg-status-icon').textContent = '❌';
+      document.getElementById('rg-status-text').textContent = 'خطأ في الاتصال';
+    }
+  },
+  leaveRoom() {
+    if(PEER_STATE.conn) PEER_STATE.conn.close();
+    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
+    PEER_STATE.peer = null; PEER_STATE.conn = null; PEER_STATE.conns = [];
+    G.go('pg-lobby');
+  },
+  closeRoom() {
+    broadcast({ type:'room_closed' });
+    PEER_STATE.conns.forEach(c => c.close());
+    if(PEER_STATE.peer) PEER_STATE.peer.destroy();
+    PEER_STATE.peer = null; PEER_STATE.conns = [];
+    G.go('pg-lobby');
+  },
+  startRoomPoll(role) {},  // لا يلزم مع P2P
+  stopRoomPoll() {},
+  renderHostPlayers() {
+    const el = document.getElementById('rh-players');
+    if(!el) return;
+    el.innerHTML = PEER_STATE.players.map(p =>
+      `<div class="room-player ${p.isHost?'host-player':''}">
+        <span class="room-player-av">${p.av||'👤'}</span>
+        <span class="room-player-name">${p.name}</span>
+        <span class="room-player-badge ${p.isHost?'badge-host':p.accepted?'badge-ready':'badge-wait'}">${p.isHost?'👑 مضيف':p.accepted?'✅ داخل':'⏳ ينتظر'}</span>
+      </div>`).join('');
+  },
+  renderRequests() {
+    const sec = document.getElementById('rh-requests-section');
+    const box = document.getElementById('rh-requests');
+    const pending = PEER_STATE.players.filter(p => !p.isHost && !p.accepted);
+    if(!pending.length){ sec.style.display='none'; return; }
+    sec.style.display='block';
+    box.innerHTML = pending.map(p =>
+      `<div class="join-request">
+        <span style="font-size:1.2rem">${p.av||'👤'}</span>
+        <span class="join-req-name">${p.name}</span>
+        <button class="join-req-acc" onclick="G.acceptPlayer('${p.name}')">✅ قبول</button>
+        <button class="join-req-rej" onclick="G.rejectPlayer('${p.name}')">❌</button>
+      </div>`).join('');
+  },
+  acceptPlayer(player) {
+    const p = PEER_STATE.players.find(x => x.name === player);
+    if (p) {
+      p.accepted = true;
+      p.conn.send({ type:'join_accept' });
+      broadcast({ type:'player_list', players: PEER_STATE.players.map(x=>({name:x.name,av:x.av,isHost:x.isHost,accepted:x.accepted})) });
+      G.renderHostPlayers();
+      G.renderRequests();
+      document.getElementById('rh-count').textContent = PEER_STATE.players.length;
+    }
+  },
+  rejectPlayer(player) {
+    const p = PEER_STATE.players.find(x => x.name === player);
+    if (p) {
+      p.conn.send({ type:'join_reject' });
+      PEER_STATE.players = PEER_STATE.players.filter(x => x.name !== player);
+      G.renderHostPlayers(); G.renderRequests();
+    }
+  },
+  renderGuestView(r) {
+    const me = (r.players||[]).find(p => p.name === AUTH.user?.full);
+    if(me?.accepted){ document.getElementById('rg-status-icon').textContent='✅'; document.getElementById('rg-status-text').textContent='تمت الموافقة! في انتظار المضيف...'; }
+    const el = document.getElementById('rg-players');
+    if(el) el.innerHTML = (r.players||[]).map(p =>
+      `<div class="room-player ${p.isHost?'host-player':''}">
+        <span class="room-player-av">${p.av||'👤'}</span>
+        <span class="room-player-name">${p.name}</span>
+        <span class="room-player-badge ${p.isHost?'badge-host':'badge-ready'}">${p.isHost?'👑 مضيف':'✅'}</span>
+      </div>`).join('');
+  },
+  renderChat(role) {
+    const box = document.getElementById(role==='host'?'rh-chat':'rg-chat');
+    if(!box) return;
+    const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 10;
+    box.innerHTML = PEER_STATE.chat.map(m =>
+      `<div class="chat-msg ${m.from===AUTH.user?.full?'mine':''}">
+        <span class="chat-who">${m.from}: </span><span class="chat-text">${m.text}</span>
+      </div>`).join('');
+    if(atBottom) box.scrollTop = box.scrollHeight;
+  },
+  sendChat(role) {
+    const input = document.getElementById(role==='host'?'rh-chat-input':'rg-chat-input');
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    const from = AUTH.user?.full || 'لاعب';
+    const msg = { type:'chat', from, text };
+    PEER_STATE.chat.push({ from, text });
+    G.renderChat(role);
+    if(PEER_STATE.isHost) {
+      broadcast({ type:'chat_broadcast', from, text });
+    } else if(PEER_STATE.conn?.open) {
+      PEER_STATE.conn.send(msg);
+    }
+  },
+  hostStartGame() {
+    const accepted = PEER_STATE.players.filter(p=>p.accepted||p.isHost);
+    if(accepted.length < 2){ alert('تحتاج لاعبَين على الأقل مقبولَين!'); return; }
+    const settings = { mode:ROOM.mode, diff:ROOM.diff, time:ROOM.time };
+    const players  = accepted.map(p=>({name:p.name,av:p.av,isHost:p.isHost,pts:0,ok:0,bad:0,skip:0}));
+    // أرسل إشارة البدء لجميع الضيوف
+    broadcast({ type:'game_start', settings, players });
+    G.startNetworkGame(settings, players);
+  },
+  startNetworkGame(settings, players) {
+    G.cfg.mode  = settings.mode  || 'all';
+    G.cfg.diff  = settings.diff  || 'mixed';
+    G.cfg.time  = settings.time  || 30;
+    const pList = players || PEER_STATE.players.filter(p=>p.accepted||p.isHost);
+    G.cfg.players = pList.map(p => ({name:p.name,av:p.av||'👤',pts:0,ok:0,bad:0,skip:0,hearts:3,jokerUsed:false}));
+    G.startGame();
+  },
+
+  // ── REPORT ──
+  showReport() {
+    // في وضع P2P: دمج النقاط من PEER_STATE.scores
+    if (PEER_STATE.isHost && Object.keys(PEER_STATE.scores).length > 0) {
+      Object.values(PEER_STATE.scores).forEach(sc => {
+        const p = G.cfg.players.find(x => x.name === sc.player);
+        if (p) { p.pts = sc.pts; p.ok = sc.ok; p.bad = sc.bad; p.skip = sc.skip; }
+      });
+      // أمر الجميع بعرض التقرير
+      broadcast({ type:'show_report' });
+    }
+    G._renderReport();
+  },
+  _renderReport() {
+    const sorted = [...G.cfg.players].sort((a,b)=>b.pts-a.pts);
+    const modeLabel = G.cfg.mode==='all'?'🎯 الكل يلعب':'⚔️ شامبيونة';
+    document.getElementById('rep-title').textContent = '📊 تقرير المباراة';
+    document.getElementById('rep-meta').textContent = `${modeLabel} — ${new Date().toLocaleString('ar-SA')}`;
+    const totalQs = sorted.reduce((s,p)=>s+p.ok+p.bad+p.skip,0);
+    const totalOk = sorted.reduce((s,p)=>s+p.ok,0);
+    document.getElementById('rep-stats').innerHTML = `
+      <div class="report-stat"><div class="report-stat-val">${sorted.length}</div><div class="report-stat-label">لاعبين</div></div>
+      <div class="report-stat"><div class="report-stat-val">${totalQs}</div><div class="report-stat-label">سؤال إجمالي</div></div>
+      <div class="report-stat"><div class="report-stat-val">${totalQs?Math.round(totalOk/totalQs*100):0}%</div><div class="report-stat-label">نسبة الصح</div></div>`;
+    document.getElementById('rep-players').innerHTML = sorted.map((p,i)=>
+      `<div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+        <span style="font-size:1.2rem">${['🥇','🥈','🥉'][i]||(i+1)+'.'}</span>
+        <span style="font-size:1.3rem">${p.av}</span>
+        <div style="flex:1"><div style="font-weight:900;font-size:.9rem">${p.name}</div>
+        <div style="font-size:.68rem;color:var(--muted)">✅ ${p.ok} &nbsp; ❌ ${p.bad} &nbsp; ⏩ ${p.skip}</div></div>
+        <div style="font-size:1.2rem;font-weight:900;color:var(--gold)">${p.pts}</div>
+      </div>`).join('');
+    document.getElementById('rep-back-btn').textContent = (PEER_STATE.peer && !PEER_STATE.peer.destroyed) ? '↩ العودة للغرفة' : '↩ لعبة جديدة';
+    G.go('pg-report');
+    G.confetti();
+  },
+  afterReport() {
+    if(PEER_STATE.peer){
+      if(PEER_STATE.isHost) G.go('pg-room-host');
+      else G.go('pg-room-guest');
+    } else G.newGame();
+  },
+
+  // ── STORE ──
+  buildStore() {
+    const el = document.getElementById('store-items');
+    if(!el) return;
+    if(!STORE_PACKS || STORE_PACKS.length===0){
+      el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:10px">📦</div><div style="font-size:.85rem">المتجر فارغ — الروابط ستُضاف قريباً</div></div>';
+      return;
+    }
+    el.innerHTML = STORE_PACKS.map(pack=>
+      `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:10px">
+        <span style="font-size:2.5rem">${pack.icon}</span>
+        <div style="flex:1"><div style="font-weight:900;font-size:.9rem">${pack.name}</div><div style="font-size:.72rem;color:var(--muted);margin-top:3px">${pack.desc}</div></div>
+        <button id="pack-btn-${pack.id}" onclick="G.downloadPack('${pack.id}')" style="background:linear-gradient(135deg,var(--fire),var(--fire2));border:none;border-radius:10px;padding:8px 14px;color:#fff;font-family:Cairo,sans-serif;font-size:.78rem;font-weight:900;cursor:pointer">⬇️ تحميل</button>
+      </div>`).join('');
+  },
+  downloadPack(packId) {
+    const pack = STORE_PACKS.find(p=>p.id===packId);
+    if(!pack || !pack.url || pack.url.includes('GOOGLE_DRIVE')){ alert('الرابط غير متاح بعد'); return; }
+    const btn = document.getElementById('pack-btn-'+packId);
+    btn.textContent='⏳ جارٍ التحميل...'; btn.disabled=true;
+    fetch(pack.url).then(r=>r.text()).then(text=>{
+      G._admCatUpload = pack.cat;
+      G.parseJSFile(text);
+      if(G._parsedQs?.length){ G.importQuestions(); btn.textContent=`✅ تم`; }
+      else{ btn.textContent='⚠️ فشل'; btn.disabled=false; }
+    }).catch(()=>{ btn.textContent='❌ خطأ'; btn.disabled=false; });
+  },
+
+  newGame() {
+    this.go('pg-setup');
+    this.buildSetup();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+//  PEER — شبكة P2P بدون خادم باستخدام PeerJS
+//  لا يحتاج server.py ولا إنترنت — فقط نفس الشبكة
+// ═══════════════════════════════════════════════════════════
+
+const PEER_STATE = {
+  peer: null,        // كائن PeerJS
+  conn: null,        // اتصال المضيف (للضيوف)
+  conns: [],         // اتصالات الضيوف (للمضيف)
+  isHost: false,
+  roomCode: '',      // كود الغرفة = Peer ID للمضيف
+  players: [],
+  chat: [],
+  scores: {}
+};
+
+// ── توليد كود غرفة قصير ──
+function genRoomCode() {
+  return Math.random().toString(36).substr(2,6).toUpperCase();
+}
+
+// ── تهيئة Peer ──
+function initPeer(customId) {
+  return new Promise((resolve, reject) => {
+    const peerId = customId || ('HC_' + genRoomCode());
+    const peer = new Peer(peerId, {
+      // خادم STUN/TURN مجاني من Google — يعمل على الشبكة المحلية تلقائياً
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+    peer.on('open', id => { PEER_STATE.peer = peer; resolve(id); });
+    peer.on('error', err => {
+      // على الشبكة المحلية — جرب بدون خادم STUN
+      const peer2 = new Peer(peerId);
+      peer2.on('open', id => { PEER_STATE.peer = peer2; resolve(id); });
+      peer2.on('error', e => reject(e));
+    });
+  });
+}
+
+// ── إرسال رسالة لكل المتصلين (للمضيف) ──
+function broadcast(msg) {
+  PEER_STATE.conns.forEach(conn => {
+    if (conn.open) conn.send(msg);
+  });
+}
+
+// ── معالجة الرسائل الواردة ──
+function handleMsg(msg, fromConn) {
+  switch(msg.type) {
+
+    case 'join_req':
+      // طلب انضمام — أضفه للقائمة وأعلم المضيف
+      PEER_STATE.players.push({ name: msg.name, av: msg.av, conn: fromConn, accepted: false, isHost: false, ready: false, pts:0, ok:0, bad:0, skip:0 });
+      // عرض طلب للمضيف
+      G.renderRequests();
+      G.renderHostPlayers();
+      // إعلام الجميع
+      broadcast({ type:'player_list', players: PEER_STATE.players.map(p => ({name:p.name,av:p.av,isHost:p.isHost,accepted:p.accepted})) });
+      break;
+
+    case 'join_accept':
+      document.getElementById('rg-status-icon').textContent = '✅';
+      document.getElementById('rg-status-text').textContent = 'تمت الموافقة! في انتظار المضيف...';
+      break;
+
+    case 'join_reject':
+      document.getElementById('rg-status-icon').textContent = '❌';
+      document.getElementById('rg-status-text').textContent = 'تم رفض طلبك';
+      break;
+
+    case 'player_list':
+      PEER_STATE.players = msg.players;
+      G.renderGuestView({ players: msg.players });
+      break;
+
+    case 'chat':
+      PEER_STATE.chat.push({ from: msg.from, text: msg.text });
+      G.renderChat(PEER_STATE.isHost ? 'host' : 'guest');
+      if (!PEER_STATE.isHost) {
+        // أعد الإرسال للجميع (relay من الضيف للمضيف للكل)
+      } else {
+        broadcast(msg); // المضيف يبث للجميع
+      }
+      break;
+
+    case 'chat_broadcast':
+      PEER_STATE.chat.push({ from: msg.from, text: msg.text });
+      G.renderChat('guest');
+      break;
+
+    case 'game_start':
+      // المضيف أرسل إشارة البدء مع الإعدادات
+      PEER_STATE.players = msg.players;
+      G.startNetworkGame(msg.settings, msg.players);
+      break;
+
+    case 'score_update':
+      // لاعب أرسل نقاطه للمضيف
+      PEER_STATE.scores[msg.player] = msg;
+      if (PEER_STATE.isHost) broadcast(msg); // المضيف يبثها للكل
+      else {
+        // اجمع النقاط في cfg.players
+        const p = G.cfg.players.find(x => x.name === msg.player);
+        if (p) { p.pts = msg.pts; p.ok = msg.ok; p.bad = msg.bad; p.skip = msg.skip; }
+      }
+      break;
+
+    case 'show_report':
+      // المضيف يأمر الكل بعرض التقرير
+      G._renderReport();
+      break;
+  }
+}
+
+// دمج SRV القديم مع PEER (للتوافق مع بقية الكود)
+const SRV = {
+  async call(method, endpoint, body) {
+    // لا يوجد خادم — نتجاهل طلبات /api/ القديمة
+    return { ok: false, offline: true };
+  },
+  async ping() { return false; },
+  async load() { return null; },
+  async saveQuestion(cat, diff, q) { return { ok: false }; },
+  async saveBatch(cat, questions) { return { ok: false }; },
+  async deleteQuestion(cat, diff, idx) { return { ok: false }; }
+};
+let SRV_ONLINE = false;
+
+// ── مؤشر الاتصال ──
+function createServerIndicator() {
+  const el = document.createElement('div');
+  el.id = 'srv-indicator';
+  el.style.cssText = 'position:fixed;bottom:18px;right:18px;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.68rem;font-weight:700;z-index:999;cursor:default';
+  el.innerHTML = '<span id="srv-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green)"></span><span id="srv-txt" style="color:var(--green)">P2P جاهز</span>';
+  document.body.appendChild(el);
+}
+function updateServerIndicator(online) {}
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+//  AUTH — تسجيل الدخول
+// ═══════════════════════════════════════════════════════════
+
+// ── Login functions ──
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Server indicator
+  createServerIndicator();
+  const online = await SRV.ping();
+  updateServerIndicator(online);
+  if (online) {
+    await SRV.load();
+    console.log('🔥 الكرسي الساخن — متصل بالخادم المحلي');
+  } else {
+    console.log('🔥 الكرسي الساخن — وضع standalone');
+  }
+  // Auth check
+  if (AUTH.load()) {
+    G.goSplash();
+  }
+  // else: pg-login is already .show
+});
+
+
+// ═══════════════════════════════════════════════════════════
+//  PWA — تثبيت كتطبيق على الهاتف
+// ═══════════════════════════════════════════════════════════
+
+// إنشاء manifest ديناميكياً
+(function() {
+  const manifest = {
+    name: 'الكرسي الساخن',
+    short_name: 'كرسي ساخن',
+    description: 'لعبة الأسئلة العائلية الأمتع',
+    start_url: '.',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#060612',
+    theme_color: '#060612',
+    icons: [
+      { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23060612'/><text y='.9em' font-size='75' x='12'>🔥</text></svg>", sizes: '192x192', type: 'image/svg+xml' },
+      { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23060612'/><text y='.9em' font-size='75' x='12'>🔥</text></svg>", sizes: '512x512', type: 'image/svg+xml' }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  document.getElementById('pwa-manifest').href = url;
+})();
+
+// Service Worker للتخزين المؤقت (offline)
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'hotchair-v1';
+const ASSETS = [location.pathname];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match(e.request)))
+  );
+});
+`;
+  const swBlob = new Blob([swCode], {type:'text/javascript'});
+  const swUrl  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// زر "تثبيت التطبيق"
+let _installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // أضف زر تثبيت في شاشة الـ splash
+  const btn = document.createElement('button');
+  btn.className = 'btn-ghost';
+  btn.style.cssText = 'max-width:380px;width:100%;margin-top:8px;font-size:.8rem';
+  btn.innerHTML = '📲 تثبيت كتطبيق على الهاتف';
+  btn.onclick = () => {
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(() => { btn.remove(); _installPrompt = null; });
+  };
+  // أضفه بعد زر تسجيل الخروج في pg-splash
+  const splash = document.getElementById('pg-splash');
+  if (splash) splash.querySelector('div').appendChild(btn);
+});
+
+// Add confetti keyframe dynamically
+const style = document.createElement('style');
+style.textContent = '@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}';
+document.head.appendChild(style);
+
+// Bracket next round handler
+document.getElementById('next-round-btn').addEventListener('click', () => {
+  const s = G.s;
+  if (s.mode === 'bracket') {
+    if (s.bracketPairIdx < s.bracketPairs.length) {
+      G.startBracketMatch();
+    } else {
+      G.advanceBracket();
+    }
+  } else {
+    G.startNextPlayerTurn();
+  }
+});
+</script>
+<!-- ═══════════════ ADMIN LOGIN ═══════════════ -->
+<div id="pg-admin-login" class="page">
+<div class="wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px">
+  <div style="font-size:3rem">🔐</div>
+  <div style="font-family:'Cairo',sans-serif;font-size:1.5rem;font-weight:900;color:var(--gold)">لوحة الإدارة</div>
+  <div style="color:var(--muted);font-size:.8rem;text-align:center">أدخل كلمة المرور للوصول</div>
+  <div style="width:100%;max-width:340px;position:relative">
+    <input id="admin-pw-input" type="password" placeholder="كلمة المرور..." autocomplete="off"
+      style="width:100%;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:15px 18px;color:#fff;font-family:'Cairo',sans-serif;font-size:1rem;outline:none;text-align:right"
+      onkeydown="if(event.key==='Enter')G.adminLogin()">
+  </div>
+  <div id="admin-pw-err" style="color:var(--red);font-size:.8rem;display:none">❌ كلمة المرور خاطئة</div>
+  <button class="btn-fire" style="max-width:340px;width:100%" onclick="G.adminLogin()">دخول 🔓</button>
+  <button class="btn-back" onclick="G.go('pg-splash')">← رجوع</button>
+</div>
+</div>
+
+<!-- ═══════════════ ADMIN PANEL ═══════════════ -->
+<div id="pg-admin" class="page">
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px">
+    <div style="font-size:1.4rem;font-weight:900;color:var(--gold)">⚙️ لوحة الإدارة</div>
+    <button class="btn-back" onclick="G.go('pg-splash')">خروج ✕</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="adm-tabs">
+    <button class="adm-tab active" id="tab-upload" onclick="G.admTab('upload')">📁 رفع ملف</button>
+    <button class="adm-tab" id="tab-manual" onclick="G.admTab('manual')">✏️ إدخال يدوي</button>
+    <button class="adm-tab" id="tab-browse" onclick="G.admTab('browse')">📋 تصفح الأسئلة</button>
+    <button class="adm-tab" id="tab-store" onclick="G.admTab('store')">🛒 المتجر</button>
+  </div>
+
+  <!-- ── TAB: UPLOAD ── -->
+  <div id="adm-upload" class="adm-pane">
+    <div class="adm-card">
+      <div class="adm-card-title">
+        📁 رفع ملف أسئلة
+        <button class="help-btn" onclick="G.showHelp('upload')">!</button>
+      </div>
+
+      <div class="adm-field-label">نوع الأسئلة في الملف</div>
+      <div id="cat-sel-upload" class="adm-cat-grid">
+        <!-- built by JS -->
+      </div>
+
+      <div class="adm-field-label" style="margin-top:14px">نوع الملف</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div class="adm-type-btn active" id="ftype-robox" onclick="G.setFType('robox')">
+          <span style="font-size:1.2rem">📄</span>
+          <div style="font-weight:700;font-size:.85rem">.robox</div>
+          <div style="font-size:.65rem;color:var(--muted)">نص مخصص</div>
+        </div>
+        <div class="adm-type-btn" id="ftype-js" onclick="G.setFType('js')">
+          <span style="font-size:1.2rem">📜</span>
+          <div style="font-weight:700;font-size:.85rem">.js</div>
+          <div style="font-size:.65rem;color:var(--muted)">JavaScript</div>
+        </div>
+      </div>
+
+      <label class="adm-upload-area" id="upload-area" for="file-input">
+        <div style="font-size:2.5rem">📂</div>
+        <div style="font-weight:700;margin:8px 0 4px">اسحب الملف هنا أو اضغط للاختيار</div>
+        <div id="upload-filename" style="font-size:.75rem;color:var(--muted)">لم يُختر ملف بعد</div>
+        <input type="file" id="file-input" accept=".js,.robox,.txt" style="display:none" onchange="G.onFileChosen(this)">
+      </label>
+
+      <div id="parse-result" style="display:none;margin-top:14px"></div>
+      <div id="parse-errors" style="display:none;margin-top:10px"></div>
+
+      <button class="btn-fire" id="btn-import" style="margin-top:14px;display:none" onclick="G.importQuestions()">
+        ✅ استيراد الأسئلة
+      </button>
+    </div>
+  </div>
+
+  <!-- ── TAB: MANUAL ── -->
+  <div id="adm-manual" class="adm-pane" style="display:none">
+    <div class="adm-card">
+      <div class="adm-card-title">
+        ✏️ إضافة سؤال يدوياً
+        <button class="help-btn" onclick="G.showHelp('manual')">!</button>
+      </div>
+
+      <div class="adm-field-label">الفئة</div>
+      <div id="cat-sel-manual" class="adm-cat-grid" style="margin-bottom:14px"></div>
+
+      <div class="adm-field-label">نوع السؤال</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        <div class="adm-type-btn active" id="qtype-mcq" onclick="G.setQType('mcq')">
+          <span>🔤</span><div style="font-size:.78rem;font-weight:700">اختيار متعدد</div>
+        </div>
+        <div class="adm-type-btn" id="qtype-tf" onclick="G.setQType('tf')">
+          <span>✅</span><div style="font-size:.78rem;font-weight:700">صح / خطأ</div>
+        </div>
+        <div class="adm-type-btn" id="qtype-open" onclick="G.setQType('open')">
+          <span>💬</span><div style="font-size:.78rem;font-weight:700">مفتوح</div>
+        </div>
+      </div>
+
+      <div class="adm-field-label">نص السؤال</div>
+      <textarea id="man-q" class="adm-textarea" placeholder="اكتب السؤال هنا..." rows="3"></textarea>
+
+      <!-- MCQ fields -->
+      <div id="man-mcq-fields">
+        <div class="adm-field-label">الخيارات (اختر الصحيح بالضغط عليه)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="adm-opt-row" id="man-opt-0" onclick="G.selectCorrect(0)">
+            <div class="adm-opt-radio" id="radio-0"></div>
+            <input class="adm-opt-input" id="man-opt-input-0" placeholder="الخيار الأول">
+          </div>
+          <div class="adm-opt-row" id="man-opt-1" onclick="G.selectCorrect(1)">
+            <div class="adm-opt-radio" id="radio-1"></div>
+            <input class="adm-opt-input" id="man-opt-input-1" placeholder="الخيار الثاني">
+          </div>
+          <div class="adm-opt-row" id="man-opt-2" onclick="G.selectCorrect(2)">
+            <div class="adm-opt-radio" id="radio-2"></div>
+            <input class="adm-opt-input" id="man-opt-input-2" placeholder="الخيار الثالث">
+          </div>
+          <div class="adm-opt-row" id="man-opt-3" onclick="G.selectCorrect(3)">
+            <div class="adm-opt-radio" id="radio-3"></div>
+            <input class="adm-opt-input" id="man-opt-input-3" placeholder="الخيار الرابع">
+          </div>
+        </div>
+      </div>
+
+      <!-- T/F fields -->
+      <div id="man-tf-fields" style="display:none">
+        <div class="adm-field-label">الإجابة الصحيحة</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="adm-type-btn" id="tf-correct-true" onclick="G.setTFAnswer(true)">
+            <span>✅</span><div style="font-size:.85rem;font-weight:700">صحيح</div>
+          </div>
+          <div class="adm-type-btn" id="tf-correct-false" onclick="G.setTFAnswer(false)">
+            <span>❌</span><div style="font-size:.85rem;font-weight:700">خاطئ</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Open fields -->
+      <div id="man-open-fields" style="display:none">
+        <div class="adm-field-label">الإجابة النموذجية</div>
+        <input id="man-open-answer" class="adm-input" placeholder="اكتب الإجابة النموذجية...">
+      </div>
+
+      <div id="man-err" style="color:var(--red);font-size:.8rem;margin-top:10px;display:none"></div>
+      <div id="man-ok" style="color:var(--green);font-size:.8rem;margin-top:10px;display:none"></div>
+      <button class="btn-fire" style="margin-top:16px" onclick="G.saveManual()">➕ إضافة السؤال</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: BROWSE ── -->
+  <div id="adm-browse" class="adm-pane" style="display:none">
+    <div class="adm-card">
+      <div class="adm-card-title">📋 تصفح الأسئلة المحفوظة</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select id="browse-cat" class="adm-select" onchange="G.renderBrowse()">
+          <option value="">كل الفئات</option>
+        </select>
+        <select id="browse-diff" class="adm-select" onchange="G.renderBrowse()">
+          <option value="">كل المستويات</option>
+          <option value="easy">سهل</option>
+          <option value="med">متوسط</option>
+          <option value="hard">صعب</option>
+        </select>
+      </div>
+      <div id="browse-count" style="font-size:.75rem;color:var(--muted);margin-bottom:10px"></div>
+      <div id="browse-list"></div>
+    </div>
+
+    <!-- EXPORT CARD -->
+    <div class="adm-card">
+      <div class="adm-card-title">💾 تصدير كل الأسئلة</div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.7;margin-bottom:14px">
+        يُنشئ ملف <code style="background:#111;padding:2px 7px;border-radius:5px">.js</code> يحتوي على <strong>جميع الأسئلة</strong> الحالية (الأصلية + المضافة).<br>
+        احفظه واستبدل به الملف القديم لتصبح الأسئلة دائمة.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-fire" style="flex:1;min-width:140px" onclick="G.exportAllQuestions()">
+          ⬇️ تحميل ملف الأسئلة
+        </button>
+        <button class="btn-ghost" style="flex:1;min-width:140px" onclick="G.previewExport()">
+          👁️ معاينة الملف
+        </button>
+      </div>
+      <div id="export-preview" style="display:none;margin-top:14px">
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span id="export-preview-info"></span>
+          <button onclick="document.getElementById('export-preview').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem">إغلاق ✕</button>
+        </div>
+        <textarea id="export-preview-code" readonly
+          style="width:100%;height:220px;background:#0a0a18;border:1px solid var(--border);border-radius:10px;padding:12px;color:#7ec8e3;font-family:monospace;font-size:.7rem;resize:vertical;outline:none;direction:ltr"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: STORE ── -->
+  <div id="adm-store" class="adm-pane" style="display:none">
+    <div class="adm-card">
+      <div class="adm-card-title">🛒 متجر الأسئلة</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:16px;line-height:1.7">حمّل مجموعات أسئلة جاهزة مباشرة — تحتاج إنترنت</div>
+      <div id="store-items"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Help Modal -->
+<div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:flex-end;justify-content:center">
+  <div style="background:var(--card);border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:680px;max-height:85vh;overflow-y:auto;animation:fadeUp .3s ease">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:1.1rem;font-weight:900;color:var(--gold)" id="help-title"></div>
+      <button onclick="document.getElementById('help-modal').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">✕</button>
+    </div>
+    <div id="help-body" style="font-size:.85rem;line-height:1.9;color:#ccc"></div>
+  </div>
+</div>
+
+<style>
+/* ── ADMIN ENTRY BTN ── */
+.admin-entry-btn {
+  position: fixed;
+  bottom: 18px;
+  left: 18px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: #333;
+  font-size: .85rem;
+  cursor: pointer;
+  z-index: 500;
+  transition: all .2s;
+}
+.admin-entry-btn:hover { color: var(--muted); border-color: var(--muted); }
+
+/* ── ADMIN TABS ── */
+.adm-tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+.adm-tab { background: none; border: 2px solid var(--border); border-radius: 10px; padding: 8px 14px; color: var(--muted); font-family: 'Cairo',sans-serif; font-size: .8rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.adm-tab.active { border-color: var(--fire); color: var(--fire); background: rgba(255,69,0,.08); }
+
+.adm-pane { animation: fadeUp .25s ease; }
+.adm-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+.adm-card-title { font-size: .95rem; font-weight: 900; color: var(--gold); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+.adm-field-label { font-size: .75rem; font-weight: 900; color: var(--muted); margin-bottom: 8px; letter-spacing: .5px; }
+
+.adm-cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 6px; }
+.adm-cat-btn { background: var(--card2); border: 2px solid var(--border); border-radius: 10px; padding: 8px 5px; text-align: center; cursor: pointer; transition: all .15s; }
+.adm-cat-btn .cc-icon { font-size: 1.1rem; display: block; }
+.adm-cat-btn .cc-label { font-size: .63rem; color: var(--muted); font-weight: 700; }
+.adm-cat-btn.chosen { border-color: var(--gold); background: rgba(255,215,0,.08); }
+.adm-cat-btn.chosen .cc-label { color: var(--gold); }
+
+.adm-type-btn { background: var(--card2); border: 2px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.adm-type-btn.active { border-color: var(--fire); background: rgba(255,69,0,.1); }
+.adm-type-btn:hover { border-color: rgba(255,69,0,.4); }
+
+.adm-upload-area { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--card2); border: 2px dashed var(--border); border-radius: 14px; padding: 28px; cursor: pointer; text-align: center; transition: border-color .2s; }
+.adm-upload-area:hover { border-color: var(--fire); }
+.adm-upload-area.dragover { border-color: var(--gold); background: rgba(255,215,0,.05); }
+
+.adm-textarea { width: 100%; background: var(--card2); border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; color: #fff; font-family: 'Cairo',sans-serif; font-size: .9rem; resize: vertical; outline: none; margin-bottom: 14px; transition: border-color .2s; }
+.adm-textarea:focus { border-color: rgba(255,69,0,.5); }
+.adm-input { width: 100%; background: var(--card2); border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; color: #fff; font-family: 'Cairo',sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+.adm-input:focus { border-color: rgba(255,69,0,.5); }
+
+.adm-opt-row { display: flex; align-items: center; gap: 10px; background: var(--card2); border: 2px solid var(--border); border-radius: 12px; padding: 10px 14px; cursor: pointer; transition: all .15s; }
+.adm-opt-row:hover { border-color: rgba(255,69,0,.35); }
+.adm-opt-row.correct { border-color: var(--green); background: rgba(0,230,118,.07); }
+.adm-opt-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); flex-shrink: 0; transition: all .15s; }
+.adm-opt-row.correct .adm-opt-radio { background: var(--green); border-color: var(--green); }
+.adm-opt-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Cairo',sans-serif; font-size: .88rem; outline: none; }
+.adm-opt-input::placeholder { color: var(--muted); }
+
+.adm-select { background: var(--card2); border: 2px solid var(--border); border-radius: 10px; padding: 8px 12px; color: #ccc; font-family: 'Cairo',sans-serif; font-size: .8rem; outline: none; cursor: pointer; }
+
+.parse-error-line { background: rgba(255,23,68,.08); border: 1px solid rgba(255,23,68,.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; font-size: .75rem; }
+.parse-error-line .err-line { color: var(--red); font-weight: 700; }
+.parse-error-line .err-msg { color: #aaa; margin-top: 2px; }
+.parse-ok-box { background: rgba(0,230,118,.08); border: 1px solid rgba(0,230,118,.25); border-radius: 10px; padding: 12px 14px; font-size: .8rem; color: var(--green); }
+
+.browse-item { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; position: relative; }
+.browse-item-q { font-size: .88rem; font-weight: 700; margin-bottom: 5px; }
+.browse-item-meta { font-size: .68rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.browse-item-del { position: absolute; top: 10px; left: 10px; background: none; border: none; color: var(--red); cursor: pointer; font-size: .8rem; opacity: .5; }
+.browse-item-del:hover { opacity: 1; }
+
+.help-btn { background: linear-gradient(135deg,#6a0dad,#9b59b6); border: none; border-radius: 50%; width: 22px; height: 22px; color: #fff; font-weight: 900; font-size: .75rem; cursor: pointer; flex-shrink: 0; }
+
+/* ── MODE CARDS ── */
+.mode-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 22px 18px;
+  cursor: pointer;
+  text-align: right;
+  transition: all .25s;
+  position: relative;
+  overflow: hidden;
+}
+.mode-card:hover { border-color: var(--fire); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255,69,0,.2); }
+.mode-card * { pointer-events: none; }
+.mode-card-net { border-color: rgba(64,196,255,.25); background: rgba(64,196,255,.04); }
+.mode-card-net:hover { border-color: var(--blue); box-shadow: 0 8px 28px rgba(64,196,255,.2); }
+
+.mode-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mode-icon { font-size: 2.2rem; }
+.mode-badge { font-size: .7rem; font-weight: 900; padding: 4px 12px; border-radius: 20px; letter-spacing: 1px; }
+.off-badge { background: rgba(255,69,0,.15); color: var(--fire); border: 1px solid rgba(255,69,0,.3); }
+.on-badge  { background: rgba(64,196,255,.15); color: var(--blue); border: 1px solid rgba(64,196,255,.3); }
+.mode-title { font-size: 1.1rem; font-weight: 900; margin-bottom: 5px; }
+.mode-desc { font-size: .75rem; color: var(--muted); line-height: 1.6; }
+.mode-arrow { margin-top: 12px; font-size: .8rem; color: var(--fire); font-weight: 700; }
+.net-arrow { color: var(--blue); }
+
+/* ── CHAT BOX ── */
+.chat-box {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  height: 140px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chat-msg { font-size: .78rem; line-height: 1.5; }
+.chat-msg .chat-who { font-weight: 900; color: var(--gold); }
+.chat-msg.mine .chat-who { color: var(--fire); }
+.chat-msg .chat-text { color: #ccc; }
+
+/* ── ROOM PLAYER ROW ── */
+.room-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.room-player.host-player { border-color: rgba(255,215,0,.3); }
+.room-player-av { font-size: 1.3rem; }
+.room-player-name { flex: 1; font-size: .88rem; font-weight: 700; }
+.room-player-badge { font-size: .6rem; font-weight: 900; padding: 2px 8px; border-radius: 10px; }
+.badge-host { background: rgba(255,215,0,.15); color: var(--gold); }
+.badge-ready { background: rgba(0,230,118,.15); color: var(--green); }
+.badge-wait { background: rgba(85,85,128,.15); color: var(--muted); }
+
+/* ── JOIN REQUEST ── */
+.join-request {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,215,0,.05);
+  border: 1px solid rgba(255,215,0,.2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  animation: fadeUp .2s ease;
+}
+.join-req-name { flex: 1; font-size: .88rem; font-weight: 700; }
+.join-req-acc { background: var(--green); border: none; border-radius: 8px; padding: 5px 12px; color: #000; font-family: Cairo,sans-serif; font-size: .75rem; font-weight: 900; cursor: pointer; }
+.join-req-rej { background: transparent; border: 1px solid var(--red); border-radius: 8px; padding: 5px 12px; color: var(--red); font-family: Cairo,sans-serif; font-size: .75rem; cursor: pointer; }
+
+/* ── REPORT PAGE ── */
+.report-header { background: linear-gradient(135deg,rgba(255,69,0,.12),rgba(255,215,0,.08)); border: 1px solid var(--border); border-radius: 18px; padding: 22px; text-align: center; margin-bottom: 14px; }
+.report-stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+.report-stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+.report-stat-val { font-size: 1.4rem; font-weight: 900; color: var(--gold); }
+.report-stat-label { font-size: .65rem; color: var(--muted); margin-top: 2px; }
+
+@media print {
+  .no-print { display: none !important; }
+  .page { position: static !important; background: white !important; color: black !important; }
+  body { background: white; color: black; }
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════
+//  ADMIN PANEL
+// ═══════════════════════════════════════════
+const ADMIN_PASS = 'ifyoudontlikethe';
+
+// Extra questions added by admin, keyed by cat+diff
+if (!window.EXTRA_Q) window.EXTRA_Q = {};
+
+Object.assign(G, {
+
+  // ── Login ──
+  openAdminLogin() {
+    document.getElementById('admin-pw-input').value = '';
+    document.getElementById('admin-pw-err').style.display = 'none';
+    G.go('pg-admin-login');
+    setTimeout(() => document.getElementById('admin-pw-input').focus(), 300);
+  },
+  adminLogin() {
+    const val = document.getElementById('admin-pw-input').value;
+    if (val === ADMIN_PASS) {
+      document.getElementById('admin-pw-err').style.display = 'none';
+      G.go('pg-admin');
+      G.adminInit();
+    } else {
+      document.getElementById('admin-pw-err').style.display = 'block';
+      document.getElementById('admin-pw-input').value = '';
+    }
+  },
+
+  // ── Init ──
+  adminInit() {
+    G._admCatUpload = 'general';
+    G._admCatManual = 'general';
+    G._admFType = 'robox';
+    G._admQType = 'mcq';
+    G._admCorrect = 0;
+    G._admTFAnswer = true;
+    G._parsedQs = null;
+    G.buildAdmCatGrid('cat-sel-upload', '_admCatUpload');
+    G.buildAdmCatGrid('cat-sel-manual', '_admCatManual');
+    G.buildBrowseCatSelect();
+    G.admTab('upload');
+    G.renderBrowse();
+  },
+
+  buildAdmCatGrid(containerId, stateKey) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = Object.entries(CAT_META).map(([k, v]) =>
+      `<div class="adm-cat-btn ${G[stateKey]===k?'chosen':''}" onclick="G.${stateKey}='${k}';G.buildAdmCatGrid('${containerId}','${stateKey}')">
+        <span class="cc-icon">${v.icon}</span><span class="cc-label">${v.label}</span>
+      </div>`
+    ).join('');
+  },
+
+  // ── Tabs ──
+  admTab(name) {
+    ['upload','manual','browse','store'].forEach(t => {
+      const pane = document.getElementById('adm-' + t);
+      const tab  = document.getElementById('tab-' + t);
+      if (pane) pane.style.display = t === name ? 'block' : 'none';
+      if (tab)  tab.classList.toggle('active', t === name);
+    });
+    if (name === 'browse') G.renderBrowse();
+    if (name === 'store')  G.buildStore();
+  },
+
+  // ── File type ──
+  setFType(t) {
+    G._admFType = t;
+    ['robox','js'].forEach(x => document.getElementById('ftype-'+x).classList.toggle('active', x===t));
+    G.resetUploadResult();
+  },
+
+  resetUploadResult() {
+    document.getElementById('parse-result').style.display = 'none';
+    document.getElementById('parse-errors').style.display = 'none';
+    document.getElementById('btn-import').style.display = 'none';
+    G._parsedQs = null;
+  },
+
+  // ── File chosen ──
+  onFileChosen(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('upload-filename').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => G.parseFile(e.target.result, file.name);
+    reader.readAsText(file);
+  },
+
+  // ── PARSE FILE ──
+  parseFile(text, filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const isRobox = ext === 'robox' || G._admFType === 'robox';
+    const isJs = ext === 'js' || G._admFType === 'js';
+
+    if (isRobox) {
+      G.parseRobox(text);
+    } else if (isJs) {
+      G.parseJSFile(text);
+    } else {
+      G.parseRobox(text); // default
+    }
+  },
+
+  // ── ROBOX PARSER ──
+  parseRobox(text) {
+    const lines = text.split('\n');
+    const questions = [];
+    const errors = [];
+
+    lines.forEach((rawLine, idx) => {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('//') || line.startsWith('#')) return;
+
+      const lineNum = idx + 1;
+
+      // Detect T/F: format → Q | answer_text | True  or  Q | answer_text | False
+      const parts = line.split(' | ');
+
+      if (parts.length === 3) {
+        // Could be T/F: Q | hint | True/False
+        const lastPart = parts[2].trim();
+        if (lastPart === 'True' || lastPart === 'False') {
+          const q = parts[0].trim();
+          const hint = parts[1].trim();
+          if (!q) { errors.push({line: lineNum, raw: rawLine, msg: 'نص السؤال فارغ'}); return; }
+          questions.push({ type: 'tf', q, a: lastPart === 'True', hint, _line: lineNum });
+          return;
+        }
+      }
+
+      if (parts.length === 6) {
+        // MCQ: Q | opt1 | opt2 | opt3 | opt4 / correct
+        // But last part might have " / correct"
+        const lastRaw = parts[5];
+        const slashIdx = lastRaw.indexOf(' / ');
+        if (slashIdx === -1) {
+          errors.push({line: lineNum, raw: rawLine, msg: 'لم يُعثر على " / " للإجابة الصحيحة'});
+          return;
+        }
+        const opt4 = lastRaw.substring(0, slashIdx).trim();
+        const correct = lastRaw.substring(slashIdx + 3).trim();
+        const q = parts[0].trim();
+        const opts = [parts[1].trim(), parts[2].trim(), parts[3].trim(), parts[4].trim()];
+        // replace last opt with cleaned version
+        opts[3] = opt4; // wait, parts[5] is the 6th chunk
+        // Actually: Q | o1 | o2 | o3 | o4 / correct
+        // parts = [Q, o1, o2, o3, "o4 / correct"]  → only 5 parts!
+        errors.push({line: lineNum, raw: rawLine, msg: 'خطأ في بناء السطر — راجع التنسيق'});
+        return;
+      }
+
+      if (parts.length === 5) {
+        // MCQ: Q | o1 | o2 | o3 | o4 / correct
+        const q = parts[0].trim();
+        const o1 = parts[1].trim();
+        const o2 = parts[2].trim();
+        const o3 = parts[3].trim();
+        const lastRaw = parts[4];
+        const slashIdx = lastRaw.indexOf(' / ');
+        if (slashIdx === -1) {
+          errors.push({line: lineNum, raw: rawLine, msg: 'لم يُعثر على " / " بعد الخيار الرابع — يجب أن يكون: خيار4 / الإجابة الصحيحة'});
+          return;
+        }
+        const o4 = lastRaw.substring(0, slashIdx).trim();
+        const correct = lastRaw.substring(slashIdx + 3).trim();
+        if (!q) { errors.push({line: lineNum, raw: rawLine, msg: 'نص السؤال فارغ'}); return; }
+        if (!o1||!o2||!o3||!o4) { errors.push({line: lineNum, raw: rawLine, msg: 'أحد الخيارات فارغ'}); return; }
+        if (!correct) { errors.push({line: lineNum, raw: rawLine, msg: 'الإجابة الصحيحة فارغة بعد " / "'}); return; }
+        const opts = [o1,o2,o3,o4];
+        // find correct index (match by text)
+        let aIdx = opts.findIndex(o => o === correct);
+        if (aIdx === -1) {
+          // Try auto-fix: partial match
+          aIdx = opts.findIndex(o => o.includes(correct) || correct.includes(o));
+          if (aIdx === -1) {
+            errors.push({line: lineNum, raw: rawLine, msg: `الإجابة الصحيحة "${correct}" غير موجودة في الخيارات — تحقق من التطابق`});
+            return;
+          }
+          // warn but accept
+        }
+        questions.push({ type: 'mcq', q, o: opts, a: aIdx, _line: lineNum });
+        return;
+      }
+
+      // Unrecognized
+      if (parts.length < 3) {
+        errors.push({line: lineNum, raw: rawLine, msg: `عدد الأعمدة (${parts.length}) أقل من المطلوب — تحقق من الفواصل " | "`});
+      } else {
+        errors.push({line: lineNum, raw: rawLine, msg: `عدد الأعمدة (${parts.length}) غير مدعوم — يجب 5 (اختيار متعدد) أو 3 (صح/خطأ)`});
+      }
+    });
+
+    G.showParseResult(questions, errors);
+  },
+
+  // ── JS FILE PARSER ──
+  parseJSFile(text) {
+    const questions = [];
+    const errors = [];
+    // Try to find easy/med/hard arrays
+    // Match {q:"...", ...} objects
+    const mcqRe = /\{q:"([^"]+)",a:"([^"]+)",o:\["([^"]+)","([^"]+)","([^"]+)","([^"]+)"\]\}/g;
+    const tfRe = /\{q:"([^"]+)",tf:true,tfAnswer:(true|false)/g;
+    const openRe = /\{q:"([^"]+)",a:"([^"]+)"\}/g;
+
+    let m;
+    while ((m = mcqRe.exec(text)) !== null) {
+      const opts = [m[3],m[4],m[5],m[6]];
+      const aIdx = opts.indexOf(m[2]);
+      questions.push({ type:'mcq', q:m[1], o:opts, a:aIdx>=0?aIdx:0 });
+    }
+    while ((m = tfRe.exec(text)) !== null) {
+      questions.push({ type:'tf', q:m[1], a:m[2]==='true' });
+    }
+
+    G.showParseResult(questions, errors);
+  },
+
+  // ── Show parse result ──
+  showParseResult(questions, errors) {
+    G._parsedQs = questions;
+
+    const resEl = document.getElementById('parse-result');
+    resEl.style.display = 'block';
+
+    if (questions.length > 0) {
+      const mcqCount = questions.filter(q=>q.type==='mcq').length;
+      const tfCount  = questions.filter(q=>q.type==='tf').length;
+      resEl.innerHTML = `<div class="parse-ok-box">
+        ✅ تم تحليل الملف بنجاح<br>
+        📊 إجمالي: <strong>${questions.length}</strong> سؤال
+        &nbsp;|&nbsp; 🔤 اختيار متعدد: <strong>${mcqCount}</strong>
+        &nbsp;|&nbsp; ✅ صح/خطأ: <strong>${tfCount}</strong>
+      </div>`;
+      document.getElementById('btn-import').style.display = 'block';
+    } else {
+      resEl.innerHTML = `<div style="color:var(--red);font-size:.8rem">⚠️ لم يُعثر على أسئلة صالحة في الملف</div>`;
+      document.getElementById('btn-import').style.display = 'none';
+    }
+
+    const errEl = document.getElementById('parse-errors');
+    if (errors.length > 0) {
+      errEl.style.display = 'block';
+      errEl.innerHTML = `<div style="color:var(--red);font-size:.8rem;font-weight:700;margin-bottom:8px">⚠️ ${errors.length} خطأ في الملف:</div>` +
+        errors.map(e => `
+          <div class="parse-error-line">
+            <div class="err-line">السطر ${e.line}: <span style="color:#aaa;font-weight:400">${e.raw.substring(0,60)}${e.raw.length>60?'...':''}</span></div>
+            <div class="err-msg">↳ ${e.msg}</div>
+          </div>`).join('');
+    } else {
+      errEl.style.display = 'none';
+    }
+  },
+
+  // ── Import ──
+  importQuestions() {
+    if (!G._parsedQs || G._parsedQs.length === 0) return;
+    const cat = G._admCatUpload;
+    const batch = [];
+    G._parsedQs.forEach(q => {
+      const diff = q.type === 'mcq' ? 'easy' : q.type === 'tf' ? 'med' : 'hard';
+      if (!QDB[cat]) QDB[cat] = { easy:[], med:[], hard:[] };
+      if (q.type === 'mcq')     { QDB[cat].easy.push({q:q.q,o:q.o,a:q.a}); batch.push({diff:'easy',q:q.q,o:q.o,a:q.a,type:'mcq'}); }
+      else if (q.type === 'tf') { QDB[cat].med.push({q:q.q,a:q.a});         batch.push({diff:'med', q:q.q,a:q.a,type:'tf'}); }
+      else                      { QDB[cat].hard.push({q:q.q,a:q.a});         batch.push({diff:'hard',q:q.q,a:q.a,type:'open'}); }
+    });
+    G._parsedQs = null;
+    document.getElementById('btn-import').style.display = 'none';
+    document.getElementById('file-input').value = '';
+    document.getElementById('upload-filename').textContent = 'لم يُختر ملف بعد';
+    document.getElementById('parse-result').innerHTML =
+      `<div class="parse-ok-box">🎉 تم الاستيراد! جارٍ الحفظ...</div>`;
+    SRV.saveBatch(cat, batch).then(r => {
+      const msg = r.ok
+        ? `🎉 تم حفظ ${r.added} سؤال في extra-questions.js (إجمالي محفوظ: ${r.total})`
+        : `✅ استُورد في الذاكرة (الخادم غير متصل)`;
+      document.getElementById('parse-result').innerHTML = `<div class="parse-ok-box">${msg}</div>`;
+    });
+  },
+
+  // ── Manual entry ──
+  setQType(t) {
+    G._admQType = t;
+    ['mcq','tf','open'].forEach(x => document.getElementById('qtype-'+x).classList.toggle('active', x===t));
+    document.getElementById('man-mcq-fields').style.display  = t==='mcq'  ? 'block' : 'none';
+    document.getElementById('man-tf-fields').style.display   = t==='tf'   ? 'block' : 'none';
+    document.getElementById('man-open-fields').style.display = t==='open' ? 'block' : 'none';
+    document.getElementById('man-err').style.display = 'none';
+    document.getElementById('man-ok').style.display = 'none';
+  },
+  selectCorrect(i) {
+    G._admCorrect = i;
+    for (let x=0; x<4; x++) {
+      document.getElementById('man-opt-'+x).classList.toggle('correct', x===i);
+    }
+  },
+  setTFAnswer(val) {
+    G._admTFAnswer = val;
+    document.getElementById('tf-correct-true').classList.toggle('active', val===true);
+    document.getElementById('tf-correct-false').classList.toggle('active', val===false);
+  },
+  saveManual() {
+    const errEl = document.getElementById('man-err');
+    const okEl  = document.getElementById('man-ok');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    const q = document.getElementById('man-q').value.trim();
+    if (!q) { errEl.textContent = '⚠️ أدخل نص السؤال'; errEl.style.display='block'; return; }
+
+    const cat  = G._admCatManual;
+    const type = G._admQType;
+    let savedQ = null, diff = 'easy';
+
+    if (type === 'mcq') {
+      const opts = [0,1,2,3].map(i => document.getElementById('man-opt-input-'+i).value.trim());
+      if (opts.some(o => !o)) { errEl.textContent='⚠️ أدخل جميع الخيارات الأربعة'; errEl.style.display='block'; return; }
+      if (!QDB[cat]) QDB[cat] = {easy:[],med:[],hard:[]};
+      savedQ = { q, o:opts, a:G._admCorrect, type:'mcq' };
+      QDB[cat].easy.push(savedQ); diff = 'easy';
+      [0,1,2,3].forEach(i => { document.getElementById('man-opt-input-'+i).value=''; });
+    } else if (type === 'tf') {
+      if (!QDB[cat]) QDB[cat] = {easy:[],med:[],hard:[]};
+      savedQ = { q, a:G._admTFAnswer, type:'tf' }; diff = 'med';
+      QDB[cat].med.push(savedQ);
+    } else {
+      const ans = document.getElementById('man-open-answer').value.trim();
+      if (!ans) { errEl.textContent='⚠️ أدخل الإجابة النموذجية'; errEl.style.display='block'; return; }
+      if (!QDB[cat]) QDB[cat] = {easy:[],med:[],hard:[]};
+      savedQ = { q, a:ans, type:'open' }; diff = 'hard';
+      QDB[cat].hard.push(savedQ);
+      document.getElementById('man-open-answer').value='';
+    }
+    document.getElementById('man-q').value='';
+    okEl.textContent = '✅ جارٍ الحفظ...';
+    okEl.style.display = 'block';
+    G.renderBrowse();
+    // حفظ في الخادم
+    SRV.saveQuestion(cat, diff, savedQ).then(r => {
+      okEl.textContent = r.ok
+        ? `✅ تمت الإضافة وحُفظ في extra-questions.js (إجمالي: ${r.total})`
+        : '✅ أُضيف في الذاكرة (الخادم غير متصل)';
+      setTimeout(() => okEl.style.display='none', 3500);
+    });
+  },
+
+  // ── Browse ──
+  buildBrowseCatSelect() {
+    const sel = document.getElementById('browse-cat');
+    sel.innerHTML = '<option value="">كل الفئات</option>' +
+      Object.entries(CAT_META).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
+  },
+  renderBrowse() {
+    const catFilter  = document.getElementById('browse-cat')?.value || '';
+    const diffFilter = document.getElementById('browse-diff')?.value || '';
+    const list = document.getElementById('browse-list');
+    if (!list) return;
+    let all = [];
+    Object.keys(QDB).forEach(cat => {
+      if (catFilter && cat !== catFilter) return;
+      const db = QDB[cat];
+      ['easy','med','hard'].forEach(diff => {
+        if (diffFilter && diff !== diffFilter) return;
+        (db[diff]||[]).forEach((q, idx) => {
+          all.push({ cat, diff, idx, q });
+        });
+      });
+    });
+    document.getElementById('browse-count').textContent = `إجمالي: ${all.length} سؤال`;
+    if (all.length === 0) { list.innerHTML = '<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:20px">لا توجد أسئلة</div>'; return; }
+    const shown = all.slice(0, 50);
+    list.innerHTML = shown.map(item => {
+      const cm = CAT_META[item.cat] || {icon:'❓',label:item.cat};
+      const typeLabel = item.diff==='easy'?'MCQ':item.diff==='med'?'T/F':'مفتوح';
+      return `<div class="browse-item">
+        <button class="browse-item-del" onclick="G.deleteQ('${item.cat}','${item.diff}',${item.idx})">🗑</button>
+        <div class="browse-item-q">${item.q.q}</div>
+        <div class="browse-item-meta">
+          <span>${cm.icon} ${cm.label}</span>
+          <span>${typeLabel}</span>
+          <span>${item.diff==='easy'?'⭐ سهل':item.diff==='med'?'⭐⭐ متوسط':'⭐⭐⭐ صعب'}</span>
+        </div>
+      </div>`;
+    }).join('');
+    if (all.length > 50) list.innerHTML += `<div style="color:var(--muted);font-size:.75rem;text-align:center;padding:10px">يُعرض أول 50 من ${all.length}</div>`;
+  },
+  deleteQ(cat, diff, idx) {
+    if (QDB[cat] && QDB[cat][diff]) {
+      QDB[cat][diff].splice(idx, 1);
+      G.renderBrowse();
+    }
+  },
+
+  // ── Export ──
+  buildExportJS() {
+    const cats = Object.keys(QDB);
+    let total = 0;
+    let out = `// ═══════════════════════════════════════════════════════\n`;
+    out += `// QUESTIONS BANK — مُصدَّر من الكرسي الساخن\n`;
+    out += `// تاريخ التصدير: ${new Date().toLocaleString('ar-SA')}\n`;
+    out += `// ═══════════════════════════════════════════════════════\n\n`;
+    out += `const QDB = {\n`;
+
+    cats.forEach((cat, ci) => {
+      const db = QDB[cat];
+      if (!db) return;
+      out += `\n  ${cat}: {\n`;
+
+      // easy → MCQ
+      const easy = (db.easy || []);
+      out += `    easy: [\n`;
+      easy.forEach(q => {
+        const opts = JSON.stringify(q.o || []);
+        out += `      {q:${JSON.stringify(q.q)}, o:${opts}, a:${q.a}},\n`;
+        total++;
+      });
+      out += `    ],\n`;
+
+      // med → T/F
+      const med = (db.med || []);
+      out += `    med: [\n`;
+      med.forEach(q => {
+        out += `      {q:${JSON.stringify(q.q)}, a:${q.a}},\n`;
+        total++;
+      });
+      out += `    ],\n`;
+
+      // hard → open
+      const hard = (db.hard || []);
+      out += `    hard: [\n`;
+      hard.forEach(q => {
+        out += `      {q:${JSON.stringify(q.q)}, a:${JSON.stringify(q.a)}},\n`;
+        total++;
+      });
+      out += `    ]\n`;
+
+      out += `  }${ci < cats.length - 1 ? ',' : ''}\n`;
+    });
+
+    out += `};\n`;
+    return { code: out, total };
+  },
+
+  exportAllQuestions() {
+    const { code, total } = G.buildExportJS();
+    const blob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `hotchair-questions-${new Date().toISOString().slice(0,10)}.js`;
+    a.click();
+    URL.revokeObjectURL(url);
+    // feedback
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = `✅ تم تحميل ${total} سؤال`;
+    setTimeout(() => btn.textContent = orig, 3000);
+  },
+
+  previewExport() {
+    const { code, total } = G.buildExportJS();
+    const previewEl = document.getElementById('export-preview');
+    document.getElementById('export-preview-code').value = code;
+    document.getElementById('export-preview-info').textContent =
+      `${total} سؤال — ${(new Blob([code]).size / 1024).toFixed(1)} كيلوبايت`;
+    previewEl.style.display = previewEl.style.display === 'none' ? 'block' : 'none';
+  },
+
+  // ── Help ──
+  showHelp(section) {
+    const modal = document.getElementById('help-modal');
+    const title = document.getElementById('help-title');
+    const body  = document.getElementById('help-body');
+    modal.style.display = 'flex';
+
+    if (section === 'upload') {
+      title.textContent = '📁 شرح رفع الملفات';
+      body.innerHTML = `
+<div style="color:var(--gold);font-weight:900;margin-bottom:8px">🇸🇦 بالعربية:</div>
+<div style="margin-bottom:16px">
+يمكنك رفع ملفات الأسئلة بصيغتين:<br><br>
+<strong style="color:var(--fire)">📄 ملف .robox (تنسيق مخصص):</strong><br>
+كل سطر = سؤال واحد. المفصل بين العناصر هو <code style="background:#111;padding:2px 6px;border-radius:4px"> | </code> (مسافة ثم خط عمودي ثم مسافة)<br><br>
+• <strong>اختيار متعدد:</strong><br>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">السؤال | خيار1 | خيار2 | خيار3 | خيار4 / الإجابة_الصحيحة</code>
+الإجابة الصحيحة تأتي بعد <code> / </code> ويجب أن تطابق أحد الخيارات تماماً.<br><br>
+• <strong>صح أو خطأ:</strong><br>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">السؤال | نص_توضيحي | True</code>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">السؤال | نص_توضيحي | False</code>
+آخر عمود يجب أن يكون <code>True</code> أو <code>False</code> بالضبط.<br><br>
+<strong style="color:var(--fire)">📜 ملف .js:</strong><br>
+يُقبل ملف JavaScript يحتوي على كائنات الأسئلة بتنسيق المشروع.<br><br>
+⚠️ الأخطاء في الملف ستُعرض مع رقم السطر لتسهيل الإصلاح.
+</div>
+
+<div style="color:var(--gold);font-weight:900;margin-bottom:8px">🇬🇧 In English:</div>
+<div>
+You can upload question files in two formats:<br><br>
+<strong style="color:var(--fire)">📄 .robox file (custom format):</strong><br>
+Each line = one question. Separator between elements is <code style="background:#111;padding:2px 6px;border-radius:4px"> | </code> (space-pipe-space)<br><br>
+• <strong>Multiple choice:</strong><br>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">Question | Option1 | Option2 | Option3 | Option4 / CorrectAnswer</code>
+The correct answer comes after <code> / </code> and must exactly match one of the options.<br><br>
+• <strong>True / False:</strong><br>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">Question | hint_text | True</code>
+<code style="background:#111;padding:4px 8px;border-radius:6px;display:block;margin:4px 0">Question | hint_text | False</code>
+Last column must be exactly <code>True</code> or <code>False</code>.<br><br>
+<strong style="color:var(--fire)">📜 .js file:</strong><br>
+Accepts a JavaScript file containing question objects in the project format.<br><br>
+⚠️ Errors will be shown with their line number for easy debugging.
+</div>`;
+    } else {
+      title.textContent = '✏️ شرح الإدخال اليدوي';
+      body.innerHTML = `
+<div style="color:var(--gold);font-weight:900;margin-bottom:8px">🇸🇦 بالعربية:</div>
+<div style="margin-bottom:16px">
+يمكنك إضافة سؤال واحد في كل مرة يدوياً:<br><br>
+1. اختر <strong>الفئة</strong> التي ينتمي إليها السؤال (رياضة، علوم، تاريخ...)<br>
+2. اختر <strong>نوع السؤال</strong>:<br>
+&nbsp;&nbsp;• <strong>اختيار متعدد:</strong> أدخل السؤال وأربعة خيارات، ثم اضغط على الخيار الصحيح لتحديده (يتحول للأخضر).<br>
+&nbsp;&nbsp;• <strong>صح / خطأ:</strong> أدخل السؤال واختر إذا كانت الإجابة صحيحة أم خاطئة.<br>
+&nbsp;&nbsp;• <strong>مفتوح:</strong> أدخل السؤال والإجابة النموذجية التي ستُعرض للمحكّم.<br>
+3. اضغط <strong>"إضافة السؤال"</strong>.<br><br>
+الأسئلة المضافة تُحفظ مباشرة وتُستخدم في الألعاب القادمة خلال نفس الجلسة.
+</div>
+
+<div style="color:var(--gold);font-weight:900;margin-bottom:8px">🇬🇧 In English:</div>
+<div>
+You can add one question at a time manually:<br><br>
+1. Select the <strong>category</strong> (Sports, Science, History...)<br>
+2. Choose the <strong>question type</strong>:<br>
+&nbsp;&nbsp;• <strong>Multiple choice:</strong> Enter the question and four options, then click the correct option to highlight it green.<br>
+&nbsp;&nbsp;• <strong>True / False:</strong> Enter the question and select whether the answer is True or False.<br>
+&nbsp;&nbsp;• <strong>Open:</strong> Enter the question and a model answer shown to the judge.<br>
+3. Press <strong>"Add Question"</strong>.<br><br>
+Added questions are saved immediately and used in upcoming games within the same session.
+</div>`;
+    }
+  }
+});
+
+// Drag & drop on upload area
+(function() {
+  const area = document.getElementById('upload-area');
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+  area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+  area.addEventListener('drop', e => {
+    e.preventDefault();
+    area.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    document.getElementById('upload-filename').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = ev => G.parseFile(ev.target.result, file.name);
+    reader.readAsText(file);
+  });
+  // Close help modal on outside click
+  document.getElementById('help-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+  });
+})();
+</script>
+
+<button id="installBtn" onclick="installApp()" style="
+display:none;
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+background:#ff3d00;
+color:white;
+border:none;
+padding:14px 28px;
+border-radius:14px;
+font-size:16px;
+font-weight:bold;
+z-index:9999;">
+📲 Install Seat Clash
+</button>
+
+<script>
+let deferredPrompt;
+
+window.addEventListener("beforeinstallprompt",(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  document.getElementById("installBtn").style.display="block";
+});
+
+function installApp(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(()=>{
+    deferredPrompt=null;
+  });
+}
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("/Chair/sw.js")
+    .then(()=>console.log("Seat Clash ready"));
+}
+</script>
+
+</body>
+</html>
